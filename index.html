@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>籁鸣导演 - 儿童AIGC动画创作平台</title>
+  <meta name="description" content="籁鸣导演 - 专业儿童动画AI创作平台，从剧本到成片全流程AI赋能" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <!-- 页面加载动画 -->
+  <div id="loader" class="loader">
+    <div class="loader-inner">
+      <div class="loader-logo">🎬</div>
+      <div class="loader-text">籁鸣导演</div>
+      <div class="loader-bar"><div class="loader-progress"></div></div>
+    </div>
+  </div>
+
+  <!-- 顶部导航 -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <span class="logo-icon">🎬</span>
+        <span class="logo-text">籁鸣导演</span>
+        <span class="logo-badge">BETA</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">核心功能</a>
+        <a href="#workflow" class="nav-link">创作流程</a>
+        <a href="#styles" class="nav-link">画风库</a>
+        <a href="#pricing" class="nav-link">定价方案</a>
+      </div>
+      <div class="nav-actions">
+        <button class="btn-outline" onclick="showModal('login')">登录</button>
+        <button class="btn-primary" onclick="showModal('register')">免费开始创作</button>
+      </div>
+      <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+    </div>
+  </nav>
+
+  <!-- Hero 区域 -->
+  <section class="hero" id="hero">
+    <div class="hero-bg">
+      <div class="hero-orb hero-orb-1"></div>
+      <div class="hero-orb hero-orb-2"></div>
+      <div class="hero-orb hero-orb-3"></div>
+      <canvas id="hero-particles"></canvas>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        儿童AIGC动画创作平台 · 专业垂直 · AI赋能
+      </div>
+      <h1 class="hero-title">
+        让每个孩子的<br/>
+        <span class="title-highlight">童话梦想</span><br/>
+        成为<span class="title-gradient">专业级动画</span>
+      </h1>
+      <p class="hero-desc">
+        籁鸣导演 — 对标即梦、liblib、oiioii 的儿童动画垂直平台<br/>
+        剧本 → 分镜 → 生图 → 视频，全流程 AI 创作，专业广电标准审核
+      </p>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num">30+</span>
+          <span class="stat-label">AI 模型</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">140+</span>
+          <span class="stat-label">动画风格</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">7大</span>
+          <span class="stat-label">创作 Agent</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">100%</span>
+          <span class="stat-label">儿童安全</span>
+        </div>
+      </div>
+      <div class="hero-cta">
+        <button class="cta-primary" onclick="showCreationStudio()">
+          <span class="cta-icon">✨</span>
+          开始免费创作
+        </button>
+        <button class="cta-secondary" onclick="scrollToSection('workflow')">
+          <span class="cta-icon">▶</span>
+          查看创作流程
+        </button>
+      </div>
+      <div class="hero-trust">
+        <span>已有 50,000+ 动画创作者选择</span>
+        <div class="trust-avatars">
+          <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=1" alt="user" />
+          <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=2" alt="user" />
+          <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=3" alt="user" />
+          <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=4" alt="user" />
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="studio-preview">
+        <div class="studio-header">
+          <div class="studio-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span class="studio-title">籁鸣导演创作台</span>
+        </div>
+        <div class="studio-body">
+          <!-- 模拟工作台界面 -->
+          <div class="studio-sidebar">
+            <div class="sidebar-item active">📝 剧本</div>
+            <div class="sidebar-item">🎬 分镜</div>
+            <div class="sidebar-item">🎨 生图</div>
+            <div class="sidebar-item">🎥 视频</div>
+            <div class="sidebar-item">📦 资产</div>
+            <div class="sidebar-item">✅ 审核</div>
+          </div>
+          <div class="studio-main">
+            <div class="script-preview">
+              <div class="script-line typing-line">
+                <span class="script-speaker">旁白：</span>
+                <span class="script-text">在一片神奇的森林里，住着一只</span>
+                <span class="cursor-blink">|</span>
+              </div>
+              <div class="script-line">
+                <span class="script-speaker">小兔子：</span>
+                <span class="script-text">今天我要去寻找那朵神奇的花！</span>
+              </div>
+              <div class="script-line">
+                <span class="script-speaker">旁白：</span>
+                <span class="script-text">小兔子迈着欢快的步伐出发了...</span>
+              </div>
+            </div>
+            <div class="ai-suggest">
+              <div class="ai-badge">🤖 AI 建议</div>
+              <div class="ai-text">可以增加"花的颜色描述"让画面更丰富</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Agent 团队展示 -->
+  <section class="agents-section" id="agents">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">7大专业 AI 智能体</div>
+        <h2 class="section-title">你的专属<span class="gradient-text">动画创作团队</span></h2>
+        <p class="section-desc">籁鸣导演内置7个专业AI Agent，各司其职协同完成从剧本到成片的全流程创作</p>
+      </div>
+      <div class="agents-grid">
+        <div class="agent-card" data-agent="director">
+          <div class="agent-avatar">🎬</div>
+          <div class="agent-role">艺术总监</div>
+          <div class="agent-name">统筹整体视觉风格，把控创作方向</div>
+          <div class="agent-skills">
+            <span>风格定义</span>
+            <span>色彩管理</span>
+            <span>视觉统筹</span>
+          </div>
+        </div>
+        <div class="agent-card" data-agent="writer">
+          <div class="agent-avatar">✍️</div>
+          <div class="agent-role">资深编剧</div>
+          <div class="agent-name">专业儿童向剧本创作，符合广电标准</div>
+          <div class="agent-skills">
+            <span>剧本创作</span>
+            <span>故事结构</span>
+            <span>对白优化</span>
+          </div>
+        </div>
+        <div class="agent-card featured" data-agent="character">
+          <div class="agent-star">⭐ 核心</div>
+          <div class="agent-avatar">👤</div>
+          <div class="agent-role">角色设计师</div>
+          <div class="agent-name">跨镜头角色一致性，角色形象全程稳定</div>
+          <div class="agent-skills">
+            <span>角色设定</span>
+            <span>一致性控制</span>
+            <span>表情系统</span>
+          </div>
+        </div>
+        <div class="agent-card" data-agent="storyboard">
+          <div class="agent-avatar">🎞️</div>
+          <div class="agent-role">分镜师</div>
+          <div class="agent-name">专业动画分镜设计，镜头语言精准到位</div>
+          <div class="agent-skills">
+            <span>分镜设计</span>
+            <span>镜头语言</span>
+            <span>节奏控制</span>
+          </div>
+        </div>
+        <div class="agent-card" data-agent="scene">
+          <div class="agent-avatar">🌄</div>
+          <div class="agent-role">场景创作者</div>
+          <div class="agent-name">儿童动画专属场景设计，温暖安全</div>
+          <div class="agent-skills">
+            <span>场景生成</span>
+            <span>背景设计</span>
+            <span>道具管理</span>
+          </div>
+        </div>
+        <div class="agent-card" data-agent="editor">
+          <div class="agent-avatar">✂️</div>
+          <div class="agent-role">剪辑师</div>
+          <div class="agent-name">智能视频剪辑合成，节奏自动匹配</div>
+          <div class="agent-skills">
+            <span>自动剪辑</span>
+            <span>节奏匹配</span>
+            <span>转场设计</span>
+          </div>
+        </div>
+        <div class="agent-card" data-agent="sound">
+          <div class="agent-avatar">🎵</div>
+          <div class="agent-role">音效总监</div>
+          <div class="agent-name">儿童向配音配乐音效全套解决方案</div>
+          <div class="agent-skills">
+            <span>配音指导</span>
+            <span>背景音乐</span>
+            <span>音效设计</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 核心功能模块 -->
+  <section class="features" id="features">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">核心功能模块</div>
+        <h2 class="section-title">专业动画创作<span class="gradient-text">全流程覆盖</span></h2>
+      </div>
+      <div class="features-tabs">
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="script">📝 智能剧本</button>
+          <button class="tab-btn" data-tab="storyboard">🎞️ 分镜创作</button>
+          <button class="tab-btn" data-tab="image">🎨 视觉生成</button>
+          <button class="tab-btn" data-tab="video">🎥 视频生成</button>
+          <button class="tab-btn" data-tab="assets">📦 资产管理</button>
+          <button class="tab-btn" data-tab="review">✅ 内容审核</button>
+        </div>
+        <div class="tab-content" id="tab-panels">
+          <!-- 剧本创作 -->
+          <div class="tab-panel active" data-panel="script">
+            <div class="panel-left">
+              <h3>智能剧本创作系统</h3>
+              <p class="panel-desc">从创意萌芽到专业剧本，AI全程陪伴辅助</p>
+              <ul class="feature-list">
+                <li>
+                  <span class="feat-icon">💡</span>
+                  <div>
+                    <strong>创意构思辅助</strong>
+                    <p>输入关键词，AI 扩展为完整故事大纲</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">📄</span>
+                  <div>
+                    <strong>专业剧本写作</strong>
+                    <p>标准动画剧本格式，符合行业规范</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🔄</span>
+                  <div>
+                    <strong>剧本优化建议</strong>
+                    <p>针对儿童动画特点，提供结构/节奏/对白优化</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🎓</span>
+                  <div>
+                    <strong>教育价值提炼</strong>
+                    <p>自动分析剧本，提炼友谊/勇气/环保等教育属性</p>
+                  </div>
+                </li>
+              </ul>
+              <button class="panel-cta" onclick="openScriptStudio()">立即体验剧本创作 →</button>
+            </div>
+            <div class="panel-right">
+              <div class="feature-demo script-demo">
+                <div class="demo-header">
+                  <span>剧本编辑器</span>
+                  <div class="demo-actions">
+                    <button class="demo-btn active">AI 辅助</button>
+                    <button class="demo-btn">手动编辑</button>
+                  </div>
+                </div>
+                <div class="demo-body">
+                  <div class="script-editor">
+                    <div class="script-line">
+                      <span class="line-type scene">场景 01</span>
+                      <span class="line-content">EXT. 魔法森林 - 清晨</span>
+                    </div>
+                    <div class="script-line">
+                      <span class="line-type action">旁白</span>
+                      <span class="line-content">阳光穿过树叶，洒在小径上，小兔子米奇正在寻找传说中的彩虹花...</span>
+                    </div>
+                    <div class="script-line">
+                      <span class="line-type dialog">米奇（兴奋）</span>
+                      <span class="line-content">今天一定能找到！奶奶说彩虹花能帮助所有需要帮助的小动物！</span>
+                    </div>
+                    <div class="ai-inline-suggest">
+                      <span class="ai-spark">✨ AI</span>
+                      建议：可以加入"小兔子从篮子里拿出地图"的动作描述，让画面更生动
+                    </div>
+                  </div>
+                  <div class="edu-tags">
+                    <span class="tag-label">📚 教育价值：</span>
+                    <span class="edu-tag">乐于助人</span>
+                    <span class="edu-tag">勇于探索</span>
+                    <span class="edu-tag">传承亲情</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 分镜创作 -->
+          <div class="tab-panel" data-panel="storyboard">
+            <div class="panel-left">
+              <h3>智能分镜创作系统</h3>
+              <p class="panel-desc">剧本自动转换为专业分镜，镜头语言精准呈现</p>
+              <ul class="feature-list">
+                <li>
+                  <span class="feat-icon">🎬</span>
+                  <div>
+                    <strong>剧本自动分镜</strong>
+                    <p>一键将剧本转换为带镜头描述的分镜脚本</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">📐</span>
+                  <div>
+                    <strong>镜头语言建议</strong>
+                    <p>推镜/拉镜/摇镜/特写等专业镜头指导</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🖼️</span>
+                  <div>
+                    <strong>分镜图参考生成</strong>
+                    <p>每个分镜点自动生成参考画面，单张或九宫格</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">⏱️</span>
+                  <div>
+                    <strong>时间轴规划</strong>
+                    <p>智能规划每个场景时长，节奏自动优化</p>
+                  </div>
+                </li>
+              </ul>
+              <button class="panel-cta" onclick="openStoryboardStudio()">体验分镜创作 →</button>
+            </div>
+            <div class="panel-right">
+              <div class="feature-demo storyboard-demo">
+                <div class="demo-header">
+                  <span>分镜面板</span>
+                  <div class="demo-tags">
+                    <span class="tag-sm">共 8 个镜头</span>
+                    <span class="tag-sm">时长约 2min</span>
+                  </div>
+                </div>
+                <div class="storyboard-grid">
+                  <div class="sb-card active">
+                    <div class="sb-thumb sb-thumb-1">🌲</div>
+                    <div class="sb-info">
+                      <div class="sb-num">镜头 01</div>
+                      <div class="sb-type">全景·远景</div>
+                      <div class="sb-dur">3s</div>
+                    </div>
+                  </div>
+                  <div class="sb-card">
+                    <div class="sb-thumb sb-thumb-2">🐰</div>
+                    <div class="sb-info">
+                      <div class="sb-num">镜头 02</div>
+                      <div class="sb-type">中景·推镜</div>
+                      <div class="sb-dur">4s</div>
+                    </div>
+                  </div>
+                  <div class="sb-card">
+                    <div class="sb-thumb sb-thumb-3">🗺️</div>
+                    <div class="sb-info">
+                      <div class="sb-num">镜头 03</div>
+                      <div class="sb-type">特写·静帧</div>
+                      <div class="sb-dur">2s</div>
+                    </div>
+                  </div>
+                  <div class="sb-card add-card">
+                    <div class="sb-add">+ 添加镜头</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 视觉生成 -->
+          <div class="tab-panel" data-panel="image">
+            <div class="panel-left">
+              <h3>风格化视觉生成</h3>
+              <p class="panel-desc">儿童动画专属风格库，140+ 画风一键应用</p>
+              <ul class="feature-list">
+                <li>
+                  <span class="feat-icon">🎨</span>
+                  <div>
+                    <strong>年龄段风格匹配</strong>
+                    <p>3-6岁/7-12岁专属画风推荐，精准适配</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">⚡</span>
+                  <div>
+                    <strong>九宫格批量生图</strong>
+                    <p>同一提示词生成9张对比，快速选定方向</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🔒</span>
+                  <div>
+                    <strong>角色一致性锁定</strong>
+                    <p>跨镜头保持角色形象统一，解决"角色漂移"</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">📐</span>
+                  <div>
+                    <strong>多输出格式</strong>
+                    <p>竖屏720×1280 / 横屏1920×1080 / 正方形</p>
+                  </div>
+                </li>
+              </ul>
+              <button class="panel-cta" onclick="openImageStudio()">体验视觉生成 →</button>
+            </div>
+            <div class="panel-right">
+              <div class="feature-demo image-demo">
+                <div class="demo-header">
+                  <span>视觉生成器</span>
+                  <div class="style-selector">
+                    <span class="style-chip active">Q版卡通</span>
+                    <span class="style-chip">绘本风</span>
+                    <span class="style-chip">3D立体</span>
+                    <span class="style-chip">国风</span>
+                  </div>
+                </div>
+                <div class="image-grid-preview">
+                  <div class="img-cell img-1">🐰</div>
+                  <div class="img-cell img-2">🌸</div>
+                  <div class="img-cell img-3">🏡</div>
+                  <div class="img-cell img-4">🌈</div>
+                  <div class="img-cell img-5 selected">
+                    <div class="select-mark">✓</div>
+                    ⭐
+                  </div>
+                  <div class="img-cell img-6">🌺</div>
+                  <div class="img-cell img-7">🎠</div>
+                  <div class="img-cell img-8">🍄</div>
+                  <div class="img-cell img-9">🦋</div>
+                </div>
+                <div class="gen-bar">
+                  <div class="gen-progress"></div>
+                  <span>MiniMax · 生成中...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 视频生成 -->
+          <div class="tab-panel" data-panel="video">
+            <div class="panel-left">
+              <h3>动画视频生成</h3>
+              <p class="panel-desc">文生视频/图生视频，专业动画效果一键生成</p>
+              <ul class="feature-list">
+                <li>
+                  <span class="feat-icon">📝→🎥</span>
+                  <div>
+                    <strong>文生视频</strong>
+                    <p>基于分镜描述直接生成动画片段</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🖼️→🎥</span>
+                  <div>
+                    <strong>图生视频</strong>
+                    <p>参考图片生成动态效果，保持角色一致性</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🎮</span>
+                  <div>
+                    <strong>运镜控制</strong>
+                    <p>推/拉/摇/旋转，专业镜头运动效果</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">⏱️</span>
+                  <div>
+                    <strong>灵活时长</strong>
+                    <p>3s / 5s / 10s 多档位，适配不同场景</p>
+                  </div>
+                </li>
+              </ul>
+              <button class="panel-cta" onclick="openVideoStudio()">体验视频生成 →</button>
+            </div>
+            <div class="panel-right">
+              <div class="feature-demo video-demo">
+                <div class="demo-header">
+                  <span>视频生成器</span>
+                </div>
+                <div class="video-preview">
+                  <div class="video-screen">
+                    <div class="video-frame">🎬</div>
+                    <div class="video-controls">
+                      <div class="vc-bar">
+                        <div class="vc-progress"></div>
+                      </div>
+                      <div class="vc-btns">
+                        <span>▶</span>
+                        <span class="vc-time">0:05</span>
+                        <span>🔊</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="video-params">
+                    <div class="param-group">
+                      <span class="param-label">时长</span>
+                      <div class="param-options">
+                        <span class="opt">3s</span>
+                        <span class="opt active">5s</span>
+                        <span class="opt">10s</span>
+                      </div>
+                    </div>
+                    <div class="param-group">
+                      <span class="param-label">运镜</span>
+                      <div class="param-options">
+                        <span class="opt active">固定</span>
+                        <span class="opt">推镜</span>
+                        <span class="opt">摇镜</span>
+                      </div>
+                    </div>
+                    <div class="param-group">
+                      <span class="param-label">模型</span>
+                      <div class="param-options">
+                        <span class="opt active">MiniMax</span>
+                        <span class="opt">可灵</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 资产管理 -->
+          <div class="tab-panel" data-panel="assets">
+            <div class="panel-left">
+              <h3>项目资产管理中心</h3>
+              <p class="panel-desc">角色/场景/道具统一管理，跨项目复用</p>
+              <ul class="feature-list">
+                <li>
+                  <span class="feat-icon">📁</span>
+                  <div>
+                    <strong>项目库管理</strong>
+                    <p>每个项目独立空间，支持多项目并行管理</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">👤</span>
+                  <div>
+                    <strong>角色资产库</strong>
+                    <p>角色形象/表情/动作资产统一存储调用</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🏞️</span>
+                  <div>
+                    <strong>场景资产库</strong>
+                    <p>背景/道具/环境元素分类管理</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">🔄</span>
+                  <div>
+                    <strong>跨项目复用</strong>
+                    <p>资产可导入其他项目，系列动画高效开发</p>
+                  </div>
+                </li>
+              </ul>
+              <button class="panel-cta" onclick="openAssetsStudio()">体验资产管理 →</button>
+            </div>
+            <div class="panel-right">
+              <div class="feature-demo assets-demo">
+                <div class="demo-header">
+                  <span>资产管理器</span>
+                  <div class="asset-tabs">
+                    <span class="at active">角色</span>
+                    <span class="at">场景</span>
+                    <span class="at">道具</span>
+                  </div>
+                </div>
+                <div class="asset-grid">
+                  <div class="asset-card">
+                    <div class="asset-thumb">🐰</div>
+                    <div class="asset-name">米奇小兔</div>
+                    <div class="asset-meta">主角 · 3D</div>
+                  </div>
+                  <div class="asset-card">
+                    <div class="asset-thumb">🦊</div>
+                    <div class="asset-name">小狐狸阿宝</div>
+                    <div class="asset-meta">配角 · Q版</div>
+                  </div>
+                  <div class="asset-card">
+                    <div class="asset-thumb">🐻</div>
+                    <div class="asset-name">熊大叔</div>
+                    <div class="asset-meta">反派 · 2D</div>
+                  </div>
+                  <div class="asset-card add-asset">
+                    <div class="asset-add">+</div>
+                    <div class="asset-name">新建角色</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 内容审核 -->
+          <div class="tab-panel" data-panel="review">
+            <div class="panel-left">
+              <h3>儿童内容安全审核</h3>
+              <p class="panel-desc">广电标准内置，全流程内容安全合规保障</p>
+              <ul class="feature-list">
+                <li>
+                  <span class="feat-icon">🛡️</span>
+                  <div>
+                    <strong>广电标准审核</strong>
+                    <p>内置少儿节目广电标准，自动检测违规内容</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">📊</span>
+                  <div>
+                    <strong>适龄性评估</strong>
+                    <p>自动评估内容适合年龄段，提供适龄报告</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">💡</span>
+                  <div>
+                    <strong>修改建议</strong>
+                    <p>发现问题自动给出具体修改方案</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="feat-icon">📋</span>
+                  <div>
+                    <strong>合规报告导出</strong>
+                    <p>生成内容合规报告，便于送审与备案</p>
+                  </div>
+                </li>
+              </ul>
+              <button class="panel-cta" onclick="openReviewStudio()">体验内容审核 →</button>
+            </div>
+            <div class="panel-right">
+              <div class="feature-demo review-demo">
+                <div class="demo-header">
+                  <span>内容审核报告</span>
+                  <div class="review-score">
+                    <span class="score-num">92</span>
+                    <span class="score-label">合规分</span>
+                  </div>
+                </div>
+                <div class="review-items">
+                  <div class="review-item pass">
+                    <span class="ri-icon">✅</span>
+                    <span class="ri-text">暴力内容检测</span>
+                    <span class="ri-status">通过</span>
+                  </div>
+                  <div class="review-item pass">
+                    <span class="ri-icon">✅</span>
+                    <span class="ri-text">价值观导向</span>
+                    <span class="ri-status">优秀</span>
+                  </div>
+                  <div class="review-item warning">
+                    <span class="ri-icon">⚠️</span>
+                    <span class="ri-text">恐怖元素检测</span>
+                    <span class="ri-status">1处建议</span>
+                  </div>
+                  <div class="review-item pass">
+                    <span class="ri-icon">✅</span>
+                    <span class="ri-text">语言规范</span>
+                    <span class="ri-status">通过</span>
+                  </div>
+                  <div class="review-suggest">
+                    💡 第3场景"暗夜森林"建议改为"黄昏森林"更适合儿童受众
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 创作工作流 -->
+  <section class="workflow-section" id="workflow">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">专业动画创作流程</div>
+        <h2 class="section-title">从灵感到成片<br/><span class="gradient-text">6步完整工作流</span></h2>
+      </div>
+      <div class="workflow-timeline">
+        <div class="wf-step" data-step="1">
+          <div class="wf-num">01</div>
+          <div class="wf-icon">📝</div>
+          <div class="wf-content">
+            <div class="wf-title">剧本创作</div>
+            <div class="wf-desc">创意构思 → 故事大纲 → 完整剧本</div>
+            <div class="wf-tags">
+              <span>AI 辅助写作</span>
+              <span>结构分析</span>
+              <span>教育价值提炼</span>
+            </div>
+          </div>
+          <div class="wf-arrow">→</div>
+        </div>
+        <div class="wf-step" data-step="2">
+          <div class="wf-num">02</div>
+          <div class="wf-icon">🎞️</div>
+          <div class="wf-content">
+            <div class="wf-title">分镜设计</div>
+            <div class="wf-desc">剧本分镜化 → 镜头语言设计</div>
+            <div class="wf-tags">
+              <span>自动分镜</span>
+              <span>镜头指导</span>
+              <span>节奏规划</span>
+            </div>
+          </div>
+          <div class="wf-arrow">→</div>
+        </div>
+        <div class="wf-step" data-step="3">
+          <div class="wf-num">03</div>
+          <div class="wf-icon">🎨</div>
+          <div class="wf-content">
+            <div class="wf-title">视觉风格</div>
+            <div class="wf-desc">风格选定 → 角色/场景设计 → 资产固定</div>
+            <div class="wf-tags">
+              <span>140+ 画风</span>
+              <span>角色一致性</span>
+              <span>九宫格对比</span>
+            </div>
+          </div>
+          <div class="wf-arrow">→</div>
+        </div>
+        <div class="wf-step" data-step="4">
+          <div class="wf-num">04</div>
+          <div class="wf-icon">🎥</div>
+          <div class="wf-content">
+            <div class="wf-title">动画制作</div>
+            <div class="wf-desc">逐场生成视频 → 镜头合成</div>
+            <div class="wf-tags">
+              <span>文生视频</span>
+              <span>图生视频</span>
+              <span>运镜控制</span>
+            </div>
+          </div>
+          <div class="wf-arrow">→</div>
+        </div>
+        <div class="wf-step" data-step="5">
+          <div class="wf-num">05</div>
+          <div class="wf-icon">✂️</div>
+          <div class="wf-content">
+            <div class="wf-title">剪辑合成</div>
+            <div class="wf-desc">智能剪辑 → 转场设计 → 字幕添加</div>
+            <div class="wf-tags">
+              <span>自动剪辑</span>
+              <span>智能转场</span>
+              <span>字幕生成</span>
+            </div>
+          </div>
+          <div class="wf-arrow">→</div>
+        </div>
+        <div class="wf-step" data-step="6">
+          <div class="wf-num">06</div>
+          <div class="wf-icon">🎵</div>
+          <div class="wf-content">
+            <div class="wf-title">配音音效</div>
+            <div class="wf-desc">AI 配音 → 背景音乐 → 音效设计</div>
+            <div class="wf-tags">
+              <span>AI 配音</span>
+              <span>儿童向音效</span>
+              <span>音乐匹配</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-bonus">
+        <div class="bonus-card">
+          <span class="bonus-icon">🛡️</span>
+          <div>
+            <strong>全流程内容审核</strong>
+            <p>广电标准自动审核，确保内容合规</p>
+          </div>
+        </div>
+        <div class="bonus-card">
+          <span class="bonus-icon">📦</span>
+          <div>
+            <strong>项目资产沉淀</strong>
+            <p>每个项目资产自动归档，支持系列动画开发</p>
+          </div>
+        </div>
+        <div class="bonus-card">
+          <span class="bonus-icon">🔄</span>
+          <div>
+            <strong>一键重新生成</strong>
+            <p>不满意随时重新生成，每步可精细调整</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 画风库 -->
+  <section class="styles-section" id="styles">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">儿童动画画风库</div>
+        <h2 class="section-title">140+ 专业画风<span class="gradient-text">精准适龄推荐</span></h2>
+      </div>
+      <div class="age-filter">
+        <button class="age-btn active" data-age="all">全部</button>
+        <button class="age-btn" data-age="3-6">3-6岁</button>
+        <button class="age-btn" data-age="7-12">7-12岁</button>
+        <button class="age-btn" data-age="all-age">全年龄</button>
+      </div>
+      <div class="styles-grid">
+        <div class="style-card" data-age="3-6">
+          <div class="style-preview s-cartoon">
+            <span>🐰🐱🐻</span>
+            <div class="style-overlay">Q版卡通</div>
+          </div>
+          <div class="style-info">
+            <div class="style-name">Q版卡通</div>
+            <div class="style-age">3-6岁 ·  男女适用</div>
+            <div class="style-ref">参考：小猪佩奇、汪汪队</div>
+            <div class="style-tags">
+              <span>圆润可爱</span>
+              <span>色彩鲜艳</span>
+            </div>
+          </div>
+        </div>
+        <div class="style-card" data-age="3-6">
+          <div class="style-preview s-picture-book">
+            <span>🎨🖌️📚</span>
+            <div class="style-overlay">绘本风格</div>
+          </div>
+          <div class="style-info">
+            <div class="style-name">绘本风格</div>
+            <div class="style-age">3-8岁 · 男女适用</div>
+            <div class="style-ref">参考：绘本动画、米菲</div>
+            <div class="style-tags">
+              <span>手绘质感</span>
+              <span>温馨治愈</span>
+            </div>
+          </div>
+        </div>
+        <div class="style-card" data-age="7-12">
+          <div class="style-preview s-anime">
+            <span>🌸✨🗡️</span>
+            <div class="style-overlay">日式清新</div>
+          </div>
+          <div class="style-info">
+            <div class="style-name">日式清新</div>
+            <div class="style-age">6-12岁 · 女生向</div>
+            <div class="style-ref">参考：宫崎骏、龙猫</div>
+            <div class="style-tags">
+              <span>线条简洁</span>
+              <span>色彩柔和</span>
+            </div>
+          </div>
+        </div>
+        <div class="style-card" data-age="all-age">
+          <div class="style-preview s-3d">
+            <span>🏔️💎🌟</span>
+            <div class="style-overlay">3D立体</div>
+          </div>
+          <div class="style-info">
+            <div class="style-name">3D立体</div>
+            <div class="style-age">全年龄段 · 男女适用</div>
+            <div class="style-ref">参考：冰雪奇缘、寻梦</div>
+            <div class="style-tags">
+              <span>立体感强</span>
+              <span>动作流畅</span>
+            </div>
+          </div>
+        </div>
+        <div class="style-card" data-age="7-12">
+          <div class="style-preview s-chinese">
+            <span>🏮🐉🌊</span>
+            <div class="style-overlay">国风古韵</div>
+          </div>
+          <div class="style-info">
+            <div class="style-name">国风古韵</div>
+            <div class="style-age">6-12岁 · 男女适用</div>
+            <div class="style-ref">参考：中国唱诗班、哪吒</div>
+            <div class="style-tags">
+              <span>水墨意境</span>
+              <span>传统文化</span>
+            </div>
+          </div>
+        </div>
+        <div class="style-card" data-age="all-age">
+          <div class="style-preview s-clay">
+            <span>🧸🎭🪆</span>
+            <div class="style-overlay">粘土风格</div>
+          </div>
+          <div class="style-info">
+            <div class="style-name">粘土定格</div>
+            <div class="style-age">3-10岁 · 男女适用</div>
+            <div class="style-ref">参考：小羊肖恩、超级无敌</div>
+            <div class="style-tags">
+              <span>手工质感</span>
+              <span>温暖有趣</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 儿童专属特色 -->
+  <section class="children-features" id="children-features">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">儿童动画专属特色</div>
+        <h2 class="section-title">不只是生成工具<br/><span class="gradient-text">专业儿童动画服务平台</span></h2>
+      </div>
+      <div class="cf-grid">
+        <div class="cf-card cf-large">
+          <div class="cf-icon">🛡️</div>
+          <div class="cf-content">
+            <h3>广电标准内容审核</h3>
+            <p>内置《未成年人节目管理规定》《少儿节目制作规范》等行业标准，全流程自动审核剧本、分镜、成片内容，5大维度智能检测，守护儿童内容安全。</p>
+            <div class="cf-details">
+              <div class="cf-detail">
+                <span class="cd-icon">✅</span>暴力/恐怖元素检测
+              </div>
+              <div class="cf-detail">
+                <span class="cd-icon">✅</span>价值观导向审核
+              </div>
+              <div class="cf-detail">
+                <span class="cd-icon">✅</span>语言文明规范
+              </div>
+              <div class="cf-detail">
+                <span class="cd-icon">✅</span>广告合规检测
+              </div>
+              <div class="cf-detail">
+                <span class="cd-icon">✅</span>适龄性自动评估
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cf-card">
+          <div class="cf-icon">🎓</div>
+          <div class="cf-content">
+            <h3>教育价值提炼</h3>
+            <p>AI 自动分析剧本，提炼作品的教育属性，生成教育价值报告，助力优质儿童内容创作。</p>
+            <div class="edu-value-tags">
+              <span>🤝 友谊合作</span>
+              <span>💪 勇于探索</span>
+              <span>🌱 生态环保</span>
+              <span>❤️ 家庭亲情</span>
+              <span>📚 求知学习</span>
+              <span>🌍 文化传承</span>
+            </div>
+          </div>
+        </div>
+        <div class="cf-card">
+          <div class="cf-icon">✨</div>
+          <div class="cf-content">
+            <h3>剧本智能优化</h3>
+            <p>针对儿童动画特点，从叙事节奏、语言简化、情节趣味性等维度自动优化剧本。</p>
+            <div class="opt-items">
+              <div class="opt-item">📖 符合儿童认知水平</div>
+              <div class="opt-item">⚡ 情节节奏紧凑有趣</div>
+              <div class="opt-item">💬 对白自然易懂</div>
+              <div class="opt-item">🎭 角色个性鲜明</div>
+            </div>
+          </div>
+        </div>
+        <div class="cf-card">
+          <div class="cf-icon">🌈</div>
+          <div class="cf-content">
+            <h3>精准适龄推荐</h3>
+            <p>基于年龄段、性别倾向、地域文化等多维度，智能推荐最适合目标受众的内容风格方案。</p>
+            <div class="age-grid">
+              <div class="age-item">
+                <span class="age-label">3-6岁</span>
+                <span class="age-style">Q版 / 绘本</span>
+              </div>
+              <div class="age-item">
+                <span class="age-label">7-10岁</span>
+                <span class="age-style">日式 / 国风</span>
+              </div>
+              <div class="age-item">
+                <span class="age-label">11-14岁</span>
+                <span class="age-style">3D / 写实</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 定价方案 -->
+  <section class="pricing" id="pricing">
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-tag">定价方案</div>
+        <h2 class="section-title">灵活定价<span class="gradient-text">按需选择</span></h2>
+      </div>
+      <div class="pricing-toggle">
+        <span class="pt-label">月付</span>
+        <div class="toggle-switch" id="billingToggle" onclick="toggleBilling()">
+          <div class="toggle-dot"></div>
+        </div>
+        <span class="pt-label">年付</span>
+        <span class="pt-save">省 20%</span>
+      </div>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <div class="pc-tier">免费版</div>
+          <div class="pc-price">
+            <span class="price-currency">¥</span>
+            <span class="price-num">0</span>
+            <span class="price-period">/月</span>
+          </div>
+          <div class="pc-desc">体验核心功能，感受 AI 创作魅力</div>
+          <ul class="pc-features">
+            <li>✅ 剧本创作（每月20次）</li>
+            <li>✅ 基础画风库（20种）</li>
+            <li>✅ 生图（每月50张）</li>
+            <li>✅ 视频生成（每月5个）</li>
+            <li>✅ 内容审核（每月3次）</li>
+            <li>❌ 角色一致性控制</li>
+            <li>❌ 项目库（仅1个）</li>
+          </ul>
+          <button class="pc-btn pc-btn-outline" onclick="showModal('register')">免费开始</button>
+        </div>
+        <div class="price-card featured">
+          <div class="pc-badge">🔥 最受欢迎</div>
+          <div class="pc-tier">专业版</div>
+          <div class="pc-price">
+            <span class="price-currency">¥</span>
+            <span class="price-num monthly-price">99</span>
+            <span class="price-num yearly-price" style="display:none;">79</span>
+            <span class="price-period">/月</span>
+          </div>
+          <div class="pc-desc">专业创作者的最佳选择</div>
+          <ul class="pc-features">
+            <li>✅ 剧本创作（无限次）</li>
+            <li>✅ 全画风库（140+种）</li>
+            <li>✅ 生图（每月500张）</li>
+            <li>✅ 视频生成（每月50个）</li>
+            <li>✅ 完整内容审核</li>
+            <li>✅ 角色一致性控制</li>
+            <li>✅ 项目库（10个）</li>
+            <li>✅ 教育价值报告</li>
+          </ul>
+          <button class="pc-btn pc-btn-primary" onclick="showModal('register')">立即订阅</button>
+        </div>
+        <div class="price-card">
+          <div class="pc-tier">团队版</div>
+          <div class="pc-price">
+            <span class="price-currency">¥</span>
+            <span class="price-num monthly-price">299</span>
+            <span class="price-num yearly-price" style="display:none;">239</span>
+            <span class="price-period">/人/月</span>
+          </div>
+          <div class="pc-desc">动画工作室的高效协作方案</div>
+          <ul class="pc-features">
+            <li>✅ 全部专业版功能</li>
+            <li>✅ 多人协作创作</li>
+            <li>✅ 项目库（无限制）</li>
+            <li>✅ 资产跨项目共享</li>
+            <li>✅ 优先 AI 算力队列</li>
+            <li>✅ 合规报告导出</li>
+            <li>✅ 专属客服支持</li>
+          </ul>
+          <button class="pc-btn pc-btn-outline" onclick="showModal('register')">联系我们</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 创作台模态框 -->
+  <div class="creation-studio" id="creationStudio">
+    <div class="cs-overlay" onclick="closeCreationStudio()"></div>
+    <div class="cs-panel">
+      <div class="cs-header">
+        <div class="cs-logo">
+          <span>🎬</span>
+          <span>籁鸣导演创作台</span>
+        </div>
+        <div class="cs-nav">
+          <button class="cs-tab active" data-cstab="script" onclick="switchCSTab('script')">📝 剧本</button>
+          <button class="cs-tab" data-cstab="storyboard" onclick="switchCSTab('storyboard')">🎞️ 分镜</button>
+          <button class="cs-tab" data-cstab="image" onclick="switchCSTab('image')">🎨 生图</button>
+          <button class="cs-tab" data-cstab="video" onclick="switchCSTab('video')">🎥 视频</button>
+          <button class="cs-tab" data-cstab="review" onclick="switchCSTab('review')">✅ 审核</button>
+        </div>
+        <button class="cs-close" onclick="closeCreationStudio()">✕</button>
+      </div>
+      <div class="cs-body">
+        <!-- 剧本创作面板 -->
+        <div class="cs-panel-content active" id="cs-script">
+          <div class="cs-split">
+            <div class="cs-split-left">
+              <div class="cs-section">
+                <div class="cs-section-title">创意设置</div>
+                <div class="cs-form">
+                  <div class="cs-field">
+                    <label>故事主题</label>
+                    <input type="text" id="storyTheme" placeholder="例如：小兔子寻找彩虹花" class="cs-input" />
+                  </div>
+                  <div class="cs-field">
+                    <label>目标年龄段</label>
+                    <div class="cs-radio-group">
+                      <label class="cs-radio"><input type="radio" name="ageGroup" value="3-6" checked /> 3-6岁</label>
+                      <label class="cs-radio"><input type="radio" name="ageGroup" value="7-12" /> 7-12岁</label>
+                      <label class="cs-radio"><input type="radio" name="ageGroup" value="all" /> 全年龄</label>
+                    </div>
+                  </div>
+                  <div class="cs-field">
+                    <label>剧集时长</label>
+                    <select class="cs-select" id="epDuration">
+                      <option>3分钟（短片）</option>
+                      <option>5分钟（微动画）</option>
+                      <option>15分钟（标准集）</option>
+                    </select>
+                  </div>
+                  <div class="cs-field">
+                    <label>教育主题（可多选）</label>
+                    <div class="cs-checkbox-group">
+                      <label class="cs-checkbox"><input type="checkbox" checked /> 🤝 友谊合作</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> 💪 勇气探索</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> 🌱 生态环保</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> ❤️ 家庭亲情</label>
+                    </div>
+                  </div>
+                  <button class="cs-generate-btn" onclick="generateScript()">
+                    <span id="scriptBtnIcon">✨</span>
+                    <span id="scriptBtnText">AI 生成剧本</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="cs-split-right">
+              <div class="cs-section cs-output-section">
+                <div class="cs-section-title">
+                  剧本内容
+                  <div class="cs-output-actions">
+                    <button class="cs-action-btn" onclick="optimizeScript()">🔄 优化</button>
+                    <button class="cs-action-btn" onclick="extractEduValues()">🎓 教育价值</button>
+                    <button class="cs-action-btn" onclick="reviewScript()">🛡️ 审核</button>
+                  </div>
+                </div>
+                <div class="cs-output" id="scriptOutput">
+                  <div class="cs-placeholder">
+                    <div class="placeholder-icon">📝</div>
+                    <div class="placeholder-text">填写创意设置，点击"AI 生成剧本"开始创作</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分镜面板 -->
+        <div class="cs-panel-content" id="cs-storyboard">
+          <div class="cs-split">
+            <div class="cs-split-left">
+              <div class="cs-section">
+                <div class="cs-section-title">分镜设置</div>
+                <div class="cs-form">
+                  <div class="cs-field">
+                    <label>场景描述</label>
+                    <textarea class="cs-textarea" id="sbScene" placeholder="描述场景内容，例如：小兔子在森林中寻找彩虹花，阳光明媚，充满希望"></textarea>
+                  </div>
+                  <div class="cs-field">
+                    <label>镜头类型</label>
+                    <div class="cs-radio-group">
+                      <label class="cs-radio"><input type="radio" name="shotType" value="wide" checked /> 远景</label>
+                      <label class="cs-radio"><input type="radio" name="shotType" value="mid" /> 中景</label>
+                      <label class="cs-radio"><input type="radio" name="shotType" value="close" /> 近景/特写</label>
+                    </div>
+                  </div>
+                  <div class="cs-field">
+                    <label>镜头运动</label>
+                    <select class="cs-select">
+                      <option>固定镜头</option>
+                      <option>推镜（拉近）</option>
+                      <option>拉镜（推远）</option>
+                      <option>摇镜（左右）</option>
+                      <option>跟镜（跟随）</option>
+                    </select>
+                  </div>
+                  <div class="cs-field">
+                    <label>生成数量</label>
+                    <div class="cs-radio-group">
+                      <label class="cs-radio"><input type="radio" name="sbCount" value="1" checked /> 单张</label>
+                      <label class="cs-radio"><input type="radio" name="sbCount" value="4" /> 4格</label>
+                      <label class="cs-radio"><input type="radio" name="sbCount" value="9" /> 九宫格</label>
+                    </div>
+                  </div>
+                  <button class="cs-generate-btn" onclick="generateStoryboard()">
+                    ✨ AI 生成分镜参考
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="cs-split-right">
+              <div class="cs-section cs-output-section">
+                <div class="cs-section-title">分镜画面</div>
+                <div class="cs-output" id="storyboardOutput">
+                  <div class="cs-placeholder">
+                    <div class="placeholder-icon">🎞️</div>
+                    <div class="placeholder-text">设置场景信息，AI 将生成分镜参考画面</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 生图面板 -->
+        <div class="cs-panel-content" id="cs-image">
+          <div class="cs-split">
+            <div class="cs-split-left">
+              <div class="cs-section">
+                <div class="cs-section-title">视觉生成参数</div>
+                <div class="cs-form">
+                  <div class="cs-field">
+                    <label>画面描述</label>
+                    <textarea class="cs-textarea" id="imgPrompt" placeholder="描述要生成的画面，例如：一只可爱的小兔子站在花丛中，Q版卡通风格，色彩鲜艳"></textarea>
+                  </div>
+                  <div class="cs-field">
+                    <label>画风选择</label>
+                    <div class="style-grid-select">
+                      <div class="sgs-item active" data-style="cartoon" onclick="selectStyle(this)">
+                        <span>🐰</span>Q版卡通
+                      </div>
+                      <div class="sgs-item" data-style="picturebook" onclick="selectStyle(this)">
+                        <span>🎨</span>绘本风格
+                      </div>
+                      <div class="sgs-item" data-style="anime" onclick="selectStyle(this)">
+                        <span>🌸</span>日式清新
+                      </div>
+                      <div class="sgs-item" data-style="3d" onclick="selectStyle(this)">
+                        <span>💎</span>3D立体
+                      </div>
+                      <div class="sgs-item" data-style="chinese" onclick="selectStyle(this)">
+                        <span>🏮</span>国风古韵
+                      </div>
+                      <div class="sgs-item" data-style="clay" onclick="selectStyle(this)">
+                        <span>🧸</span>粘土风
+                      </div>
+                    </div>
+                  </div>
+                  <div class="cs-field cs-field-row">
+                    <div class="cs-field-half">
+                      <label>年龄段</label>
+                      <select class="cs-select" id="imgAge">
+                        <option>3-6岁</option>
+                        <option>7-12岁</option>
+                        <option>全年龄</option>
+                      </select>
+                    </div>
+                    <div class="cs-field-half">
+                      <label>生成数量</label>
+                      <select class="cs-select" id="imgCount">
+                        <option value="1">单张</option>
+                        <option value="4">4宫格</option>
+                        <option value="9" selected>九宫格</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button class="cs-generate-btn" onclick="generateImage()">
+                    <span id="imgBtnIcon">✨</span>
+                    <span id="imgBtnText">MiniMax 生图</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="cs-split-right">
+              <div class="cs-section cs-output-section">
+                <div class="cs-section-title">
+                  生成结果
+                  <div class="cs-output-actions">
+                    <button class="cs-action-btn" onclick="saveToAssets()">📦 存入资产库</button>
+                  </div>
+                </div>
+                <div class="cs-output" id="imageOutput">
+                  <div class="cs-placeholder">
+                    <div class="placeholder-icon">🎨</div>
+                    <div class="placeholder-text">输入画面描述，选择画风，开始 AI 生图</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视频生成面板 -->
+        <div class="cs-panel-content" id="cs-video">
+          <div class="cs-split">
+            <div class="cs-split-left">
+              <div class="cs-section">
+                <div class="cs-section-title">视频生成参数</div>
+                <div class="cs-form">
+                  <div class="cs-field">
+                    <label>生成方式</label>
+                    <div class="cs-radio-group">
+                      <label class="cs-radio"><input type="radio" name="videoMode" value="text" checked onchange="toggleVideoMode('text')" /> 文生视频</label>
+                      <label class="cs-radio"><input type="radio" name="videoMode" value="image" onchange="toggleVideoMode('image')" /> 图生视频</label>
+                    </div>
+                  </div>
+                  <div class="cs-field" id="videoTextInput">
+                    <label>动画描述</label>
+                    <textarea class="cs-textarea" id="videoPrompt" placeholder="描述动画内容，例如：小兔子跳跃着穿过彩色花丛，轻松愉快，卡通风格"></textarea>
+                  </div>
+                  <div class="cs-field" id="videoImageInput" style="display:none;">
+                    <label>参考图片</label>
+                    <div class="upload-area" onclick="document.getElementById('imgUpload').click()">
+                      <input type="file" id="imgUpload" accept="image/*" style="display:none;" onchange="previewImage(this)" />
+                      <span>📸 点击上传参考图片</span>
+                    </div>
+                    <div id="imgPreview"></div>
+                  </div>
+                  <div class="cs-field cs-field-row">
+                    <div class="cs-field-half">
+                      <label>视频时长</label>
+                      <select class="cs-select" id="videoDuration">
+                        <option value="3">3 秒</option>
+                        <option value="5" selected>5 秒</option>
+                        <option value="10">10 秒</option>
+                      </select>
+                    </div>
+                    <div class="cs-field-half">
+                      <label>画面比例</label>
+                      <select class="cs-select" id="videoRatio">
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="16:9" selected>16:9 横屏</option>
+                        <option value="1:1">1:1 正方形</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="cs-field">
+                    <label>运镜方式</label>
+                    <div class="cs-radio-group">
+                      <label class="cs-radio"><input type="radio" name="cameraMove" value="static" checked /> 固定</label>
+                      <label class="cs-radio"><input type="radio" name="cameraMove" value="push" /> 推镜</label>
+                      <label class="cs-radio"><input type="radio" name="cameraMove" value="pull" /> 拉镜</label>
+                      <label class="cs-radio"><input type="radio" name="cameraMove" value="pan" /> 摇镜</label>
+                    </div>
+                  </div>
+                  <button class="cs-generate-btn" onclick="generateVideo()">
+                    <span id="videoBtnIcon">✨</span>
+                    <span id="videoBtnText">MiniMax 生成视频</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="cs-split-right">
+              <div class="cs-section cs-output-section">
+                <div class="cs-section-title">视频预览</div>
+                <div class="cs-output" id="videoOutput">
+                  <div class="cs-placeholder">
+                    <div class="placeholder-icon">🎥</div>
+                    <div class="placeholder-text">输入动画描述，AI 将生成动画视频片段</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 内容审核面板 -->
+        <div class="cs-panel-content" id="cs-review">
+          <div class="cs-split">
+            <div class="cs-split-left">
+              <div class="cs-section">
+                <div class="cs-section-title">内容审核设置</div>
+                <div class="cs-form">
+                  <div class="cs-field">
+                    <label>待审核内容</label>
+                    <textarea class="cs-textarea review-textarea" id="reviewContent" placeholder="粘贴剧本内容进行审核...&#10;&#10;示例：&#10;场景1：小兔子在黑暗的森林中寻找彩虹花，周围都是奇怪的声音..."></textarea>
+                  </div>
+                  <div class="cs-field">
+                    <label>审核标准</label>
+                    <div class="cs-checkbox-group">
+                      <label class="cs-checkbox"><input type="checkbox" checked /> 广电少儿节目标准</label>
+                      <label class="cs-checkbox"><input type="checkbox" checked /> 儿童心理安全</label>
+                      <label class="cs-checkbox"><input type="checkbox" checked /> 社会主义核心价值观</label>
+                      <label class="cs-checkbox"><input type="checkbox" checked /> 语言文明规范</label>
+                    </div>
+                  </div>
+                  <div class="cs-field">
+                    <label>目标受众年龄</label>
+                    <select class="cs-select">
+                      <option>3-6岁（学前）</option>
+                      <option selected>7-12岁（小学）</option>
+                    </select>
+                  </div>
+                  <button class="cs-generate-btn" onclick="runContentReview()">
+                    🛡️ 开始内容审核
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="cs-split-right">
+              <div class="cs-section cs-output-section">
+                <div class="cs-section-title">
+                  审核报告
+                  <div class="cs-output-actions">
+                    <button class="cs-action-btn" onclick="exportReport()">📥 导出报告</button>
+                  </div>
+                </div>
+                <div class="cs-output" id="reviewOutput">
+                  <div class="cs-placeholder">
+                    <div class="placeholder-icon">🛡️</div>
+                    <div class="placeholder-text">粘贴剧本内容，点击"开始内容审核"</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录/注册模态框 -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+      <div class="modal-header">
+        <div class="modal-logo">🎬 籁鸣导演</div>
+        <div class="modal-tabs">
+          <button class="modal-tab active" id="loginTab" onclick="switchAuthTab('login')">登录</button>
+          <button class="modal-tab" id="registerTab" onclick="switchAuthTab('register')">注册</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="auth-panel" id="loginPanel">
+          <input type="text" class="auth-input" placeholder="手机号 / 邮箱" />
+          <input type="password" class="auth-input" placeholder="密码" />
+          <div class="auth-extra">
+            <label><input type="checkbox" /> 记住我</label>
+            <a href="#" class="auth-link">忘记密码？</a>
+          </div>
+          <button class="auth-submit" onclick="closeModal('authModal'); showCreationStudio()">登录</button>
+          <div class="auth-divider"><span>或使用以下方式</span></div>
+          <div class="auth-social">
+            <button class="social-btn">🟢 微信登录</button>
+            <button class="social-btn">🔵 QQ登录</button>
+          </div>
+        </div>
+        <div class="auth-panel" id="registerPanel" style="display:none;">
+          <input type="text" class="auth-input" placeholder="手机号" />
+          <input type="text" class="auth-input" placeholder="验证码" />
+          <input type="text" class="auth-input" placeholder="昵称（创作者名）" />
+          <input type="password" class="auth-input" placeholder="设置密码" />
+          <button class="auth-submit" onclick="closeModal('authModal'); showCreationStudio()">免费注册</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="footer-logo">🎬 籁鸣导演</div>
+        <p>儿童AIGC动画创作平台<br/>让每个孩子的童话梦想成为专业级动画</p>
+        <div class="footer-social">
+          <a href="#">微博</a>
+          <a href="#">微信公众号</a>
+          <a href="#">B站</a>
+          <a href="#">抖音</a>
+        </div>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <div class="fc-title">产品功能</div>
+          <a>智能剧本创作</a>
+          <a>分镜设计系统</a>
+          <a>视觉风格生成</a>
+          <a>动画视频生成</a>
+          <a>资产管理中心</a>
+          <a>内容安全审核</a>
+        </div>
+        <div class="footer-col">
+          <div class="fc-title">学习资源</div>
+          <a>动画创作教程</a>
+          <a>儿童动画规范</a>
+          <a>剧本写作指南</a>
+          <a>分镜设计课程</a>
+          <a>创作者社区</a>
+        </div>
+        <div class="footer-col">
+          <div class="fc-title">关于我们</div>
+          <a>产品介绍</a>
+          <a>定价方案</a>
+          <a>合作伙伴</a>
+          <a>用户条款</a>
+          <a>隐私政策</a>
+          <a>联系我们</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 籁鸣导演 · 儿童AIGC动画创作平台</span>
+      <span>本平台内容符合广电少儿节目标准</span>
+    </div>
+  </footer>
+
+  <script src="scripts/main.js"></script>
+</body>
+</html>
