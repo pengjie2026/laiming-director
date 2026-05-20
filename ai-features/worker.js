@@ -111,7 +111,8 @@ async function handleScript(req, env, headers) {
 
   const data = await resp.json();
   console.log('[Worker] MiniMax /script raw response:', JSON.stringify(data).substring(0, 800));
-  return json({ data, model: 'MiniMax-M2.7-highspeed' }, 200, headers);
+  // 如果 MiniMax 返回 choices，直接返回整个 data（不额外包装），方便前端直接访问
+  return json({ raw: data, model: 'MiniMax-M2.7-highspeed' }, 200, headers);
 }
 
 // ── 分镜规划 ─────────────────────────────────────────────────────

@@ -325,9 +325,11 @@ async function generateScript() {
     const result = await apiCall('/script', { theme, ageGroup });
 
     // 解析 MiniMax 返回的文本
+    // Worker 现在返回 { raw: MiniMax原始响应 }
     // MiniMax 响应格式: choices[0].message.content
+    // content 可能是普通文本，也可能是 JSON 字符串（带或不带 markdown 代码块）
     let scriptText = '';
-    const mm = result.data || result;
+    const mm = result.raw || result.data || result;
     const choices = mm.choices;
     if (choices && choices.length > 0) {
       scriptText = choices[0]?.message?.content || '';
@@ -336,6 +338,9 @@ async function generateScript() {
       // 兜底：直接字符串化
       scriptText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
     }
+
+    // 去掉可能的 markdown 代码块包裹
+    scriptText = scriptText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
     // 尝试解析 JSON
     let scriptHtml = '';
@@ -442,12 +447,13 @@ async function generateStoryboard() {
   try {
     const result = await apiCall('/storyboard', { scene, style });
     let rawText = '';
-    const mm = result.data || result;
+    const mm = result.raw || result.data || result;
     const choices = mm.choices;
     if (choices && choices.length > 0) {
       rawText = choices[0]?.message?.content || '';
     }
     if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
+    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
     // 尝试解析 JSON
     let cardsHtml = '';
@@ -631,12 +637,13 @@ async function runContentReview() {
   try {
     const result = await apiCall('/review', { content });
     let rawText = '';
-    const mm = result.data || result;
+    const mm = result.raw || result.data || result;
     const choices = mm.choices;
     if (choices && choices.length > 0) {
       rawText = choices[0]?.message?.content || '';
     }
     if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
+    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
     let score = 0, grade = '', checks = [], canProceed = false;
 
@@ -755,7 +762,7 @@ async function runScriptOptimization() {
     const opt = document.getElementById('optLoading');
     if (opt) opt.remove();
 
-    let rawText = (result.data || result).choices?.[0]?.message?.content || '';
+    let rawText = (result.raw || result.data || result).choices?.[0]?.message?.content || '';
     output.insertAdjacentHTML('beforeend', `
 <div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-size:0.82rem;white-space:pre-wrap;">
   <strong style="color:#a78bfa;">✨ AI 剧本优化建议：</strong><br/><br/>${escapeHtml(rawText)}
