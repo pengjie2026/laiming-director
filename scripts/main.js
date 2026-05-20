@@ -36,19 +36,69 @@ async function apiCall(endpoint, body) {
     ];
     throw new Error(steps.join('\n'));
   }
-  const resp = await fetch(`${API_CONFIG.workerUrl}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`API 错误 ${resp.status}: ${err}`);
+
+  const url = `${API_CONFIG.workerUrl}${endpoint}`;
+  let lastErr = null;
+
+  // 最多重试 2 次
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 秒超时
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '未知错误');
+        throw new Error(`API 错误 ${resp.status}: ${errText}`);
+      }
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('audio')) return resp.blob();
+      if (contentType.includes('image')) return resp.blob();
+      return resp.json();
+    } catch (err) {
+      lastErr = err;
+      const isNetworkErr = err.name === 'TypeError' || err.name === 'AbortError' || err.message?.includes('Load failed') || err.message?.includes('NetworkError') || err.message?.includes('Failed to fetch');
+      if (!isNetworkErr) throw err; // 非网络错误直接抛出
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // 指数退避
+    }
   }
-  const contentType = resp.headers.get('content-type') || '';
-  if (contentType.includes('audio')) return resp.blob();
-  if (contentType.includes('image')) return resp.blob();
-  return resp.json();
+
+  // 三次都失败，抛出带诊断信息的错误
+  throw new NetworkError(lastErr);
+}
+
+// 网络错误封装，提供诊断建议
+class NetworkError extends Error {
+  constructor(original) {
+    const msg = original?.message || '';
+    let detail = '';
+    if (msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      detail = '无法连接到 Cloudflare Worker。可能的原因：\n\n' +
+        '1. .workers.dev 域名在当前网络环境下被屏蔽\n' +
+        '2. 浏览器安全扩展拦截了跨域请求\n' +
+        '3. DNS 解析失败\n\n' +
+        '建议排查：\n' +
+        '• 打开浏览器 F12 控制台，查看 Network 标签页中的具体错误\n' +
+        '• 尝试切换网络（如从公司网络切到手机热点）\n' +
+        '• 检查浏览器扩展（广告拦截、隐私保护等）是否阻止了请求\n' +
+        '• 如持续失败，可考虑为 Worker 绑定自定义域名（而非 .workers.dev）';
+    } else if (msg.includes('aborted') || msg.includes('AbortError') || msg.includes('timeout')) {
+      detail = '请求超时（30秒）。Worker 或 MiniMax API 响应过慢，请稍后重试。';
+    } else {
+      detail = `网络请求失败：${msg}`;
+    }
+    super(detail);
+    this.original = original;
+  }
 }
 
 // -- 辅助：打字机效果 ---------------------------------------------
@@ -757,12 +807,17 @@ async function generateScript() {
   } catch (err) {
     // 检查是否是 MiniMax 余额不足
     let isBalanceErr = err.message.includes('insufficient balance') || err.message.includes('1008');
+    const isNetworkErr = err instanceof NetworkError || err.message?.includes('无法连接到 Cloudflare Worker');
     output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;">
       ${isBalanceErr
         ? `<div style="font-size:1rem;font-weight:700;margin-bottom:8px;">⚠️ MiniMax 额度不足</div>
            <div>Token Plan 余额已用完，请前往 <a href="https://platform.minimaxi.com/subscribe/token-plan" target="_blank" style="color:#a78bfa;">MiniMax Token Plan</a> 充值后重试。</div>
            <div style="margin-top:8px;font-size:0.75rem;color:rgba(240,240,255,0.5);">错误码：1008 · insufficient balance</div>`
-        : `❌ 生成失败：\n\n${err.message}`
+        : isNetworkErr
+          ? `<div style="font-size:1rem;font-weight:700;margin-bottom:8px;">❌ 网络连接失败</div>
+             <div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(err.message)}</div>`
+          : `<div style="font-size:1rem;font-weight:700;margin-bottom:8px;">❌ 生成失败</div>
+             <div style="white-space:pre-wrap;">${escapeHtml(err.message)}</div>`
       }
     </div>`;
     setBtnState(btn, '✨', '重新生成剧本', false);
