@@ -1119,6 +1119,8 @@
           <button class="cs-tab" data-cstab="image" onclick="switchCSTab('image')">🎨 生图</button>
           <button class="cs-tab" data-cstab="video" onclick="switchCSTab('video')">🎥 视频</button>
           <button class="cs-tab" data-cstab="review" onclick="switchCSTab('review')">✅ 审核</button>
+          <button class="cs-tab" data-cstab="tts" onclick="switchCSTab('tts')">🎵 配音</button>
+          <button class="cs-tab" data-cstab="assets" onclick="switchCSTab('assets')">📦 资产库</button>
         </div>
         <button class="cs-close" onclick="closeCreationStudio()">✕</button>
       </div>
@@ -1405,7 +1407,7 @@
                 <div class="cs-form">
                   <div class="cs-field">
                     <label>待审核内容</label>
-                    <textarea class="cs-textarea review-textarea" id="reviewContent" placeholder="粘贴剧本内容进行审核...&#10;&#10;示例：&#10;场景1：小兔子在黑暗的森林中寻找彩虹花，周围都是奇怪的声音..."></textarea>
+                    <textarea class="cs-textarea review-textarea" id="reviewContent" placeholder="粘贴剧本内容进行审核...&#10;&#10;示例：&#10;场景1：小兔子在黑暗的森林中寻找彩虹花..."></textarea>
                   </div>
                   <div class="cs-field">
                     <label>审核标准</label>
@@ -1423,16 +1425,13 @@
                       <option selected>7-12岁（小学）</option>
                     </select>
                   </div>
-                  <button class="cs-generate-btn" onclick="runContentReview()">
-                    🛡️ 开始内容审核
-                  </button>
+                  <button class="cs-generate-btn" onclick="runContentReview()">🛡️ 开始内容审核</button>
                 </div>
               </div>
             </div>
             <div class="cs-split-right">
               <div class="cs-section cs-output-section">
-                <div class="cs-section-title">
-                  审核报告
+                <div class="cs-section-title">审核报告
                   <div class="cs-output-actions">
                     <button class="cs-action-btn" onclick="exportReport()">📥 导出报告</button>
                   </div>
@@ -1444,6 +1443,86 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TTS 配音面板 -->
+        <div class="cs-panel-content" id="cs-tts">
+          <div class="cs-split">
+            <div class="cs-split-left">
+              <div class="cs-section">
+                <div class="cs-section-title">AI 语音合成（MiniMax Speech 2.8）</div>
+                <div class="cs-form">
+                  <div class="cs-field">
+                    <label>配音文本</label>
+                    <textarea class="cs-textarea" id="ttsText" placeholder="输入要配音的文字内容...&#10;&#10;示例：&#10;旁白：从前有一只可爱的小兔子，住在森林边的小木屋里..." rows="6"></textarea>
+                  </div>
+                  <div class="cs-field">
+                    <label>配音角色</label>
+                    <select class="cs-select" id="voiceId">
+                      <option value="Chinese (Mandarin)_Lyrical_Voice">🌸 抒情女声（推荐儿童故事）</option>
+                      <option value="Chinese (Mandarin)_Friendly_Narrator">🎙️ 温和旁白</option>
+                      <option value="Chinese (Mandarin)_Warm_Storyteller">📖 故事讲述者</option>
+                      <option value="Chinese (Mandarin)_Cheerful_Child">🧒 欢快童声</option>
+                      <option value="Chinese (Mandarin)_Gentle_Mother">👩 温柔妈妈</option>
+                      <option value="Chinese (Mandarin)_Grandpa_Storyteller">👴 和蔼爷爷</option>
+                    </select>
+                  </div>
+                  <div class="cs-field">
+                    <label>语速</label>
+                    <input type="range" min="0.5" max="2" step="0.1" value="1" style="width:100%;" oninput="this.nextElementSibling.textContent=this.value+'x'" />
+                    <span style="font-size:0.75rem;color:#a78bfa;margin-top:4px;">语速: 1x（正常）</span>
+                  </div>
+                  <button class="cs-generate-btn" onclick="generateVoice()">
+                    <span class="btn-icon">🎵</span>
+                    <span class="btn-text">生成配音</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="cs-split-right">
+              <div class="cs-section cs-output-section">
+                <div class="cs-section-title">配音预览</div>
+                <div class="cs-output" id="ttsOutput">
+                  <div class="cs-placeholder">
+                    <div class="placeholder-icon">🎵</div>
+                    <div class="placeholder-text">输入配音文字，选择角色后点击"生成配音"</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 资产库面板 -->
+        <div class="cs-panel-content" id="cs-assets">
+          <div class="cs-section">
+            <div class="cs-section-title">我的资产库</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;padding:16px 0;">
+              <div style="background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;cursor:pointer;transition:0.2s;" onclick="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(255,255,255,0.2)'">
+                <div style="font-size:2rem;margin-bottom:8px;">📷</div>
+                <div style="font-size:0.75rem;color:rgba(240,240,255,0.5);">上传图片</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
+                <div style="height:80px;background:linear-gradient(135deg,rgba(255,182,193,0.3),rgba(124,58,237,0.2));display:flex;align-items:center;justify-content:center;font-size:2rem;">🐰🌸</div>
+                <div style="padding:8px;font-size:0.72rem;color:rgba(240,240,255,0.5);text-align:center;">场景图_01.png</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
+                <div style="height:80px;background:linear-gradient(135deg,rgba(173,216,230,0.3),rgba(16,185,129,0.2));display:flex;align-items:center;justify-content:center;font-size:2rem;">🌈🌺</div>
+                <div style="padding:8px;font-size:0.72rem;color:rgba(240,240,255,0.5);text-align:center;">彩虹花.png</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
+                <div style="height:80px;background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;font-size:2rem;">🎬</div>
+                <div style="padding:8px;font-size:0.72rem;color:rgba(240,240,255,0.5);text-align:center;">配音_旁白.mp3</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
+                <div style="height:80px;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;font-size:2rem;">🎥</div>
+                <div style="padding:8px;font-size:0.72rem;color:rgba(240,240,255,0.5);text-align:center;">动画片段_001.mp4</div>
+              </div>
+            </div>
+            <div style="padding:12px 0;font-size:0.8rem;color:rgba(240,240,255,0.4);">
+              💡 生成的图片、视频、配音会自动存入此处，可随时下载复用
             </div>
           </div>
         </div>

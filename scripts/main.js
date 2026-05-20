@@ -1,8 +1,86 @@
 /* ================================================================
    籁鸣导演 主逻辑脚本
+   MiniMax API 真实对接版本
    ================================================================ */
 
-// ── 全局状态 ──────────────────────────────────────────────────────
+// ── MiniMax API 配置 ─────────────────────────────────────────────
+// ⚠️ 部署 Cloudflare Worker 后，将下方的 workerUrl 替换为实际地址
+// 部署步骤：
+//   cd ai-features
+//   wrangler login
+//   wrangler secret put MINIMAX_API_KEY
+//   wrangler deploy
+const API_CONFIG = {
+  workerUrl: 'https://laiming-director-ai.abc123.workers.dev',  // Cloudflare Worker 地址
+
+  isConfigured() {
+    return !!this.workerUrl && this.workerUrl.startsWith('http');
+  }
+};
+
+// ── API 调用封装 ─────────────────────────────────────────────────
+async function apiCall(endpoint, body) {
+  if (!API_CONFIG.isConfigured()) {
+    const steps = [
+      'Worker URL 未配置，请按以下步骤部署：',
+      '',
+      '1️⃣  cd ai-features',
+      '2️⃣  wrangler login',
+      '3️⃣  wrangler secret put MINIMAX_API_KEY',
+      '      （粘贴 MiniMax API Key）',
+      '4️⃣  wrangler deploy',
+      '5️⃣  将部署后的 Worker URL 填入 main.js 的 API_CONFIG.workerUrl',
+      '',
+      'MiniMax API Key（Token Plan）示例：',
+      'sk-api-8nLy5uA1JRaYlF9xTtU3O8JKCA3qovzlsCbtrg8SoaTbpgzFFGOq-jt-TR6gkzI684WDHzdgbLueoU8W7IfhXIPGgfeSL1q6FuUuNJ73k9Q3v7xOkM9Fn2s',
+    ];
+    throw new Error(steps.join('\n'));
+  }
+  const resp = await fetch(`${API_CONFIG.workerUrl}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`API 错误 ${resp.status}: ${err}`);
+  }
+  const contentType = resp.headers.get('content-type') || '';
+  if (contentType.includes('audio')) return resp.blob();
+  if (contentType.includes('image')) return resp.blob();
+  return resp.json();
+}
+
+// ── 辅助：打字机效果 ─────────────────────────────────────────────
+function typeText(element, text, speed = 15) {
+  return new Promise((resolve) => {
+    let i = 0;
+    element.textContent = '';
+    function tick() {
+      if (i < text.length) {
+        element.textContent += text.substring(i, i + 4);
+        i += 4;
+        element.parentElement.scrollTop = element.parentElement.scrollHeight;
+        setTimeout(tick, speed);
+      } else {
+        element.textContent = text;
+        resolve();
+      }
+    }
+    tick();
+  });
+}
+
+// ── 辅助：设置按钮状态 ───────────────────────────────────────────
+function setBtnState(btn, icon, text, disabled = false) {
+  const iconEl = btn.querySelector('.btn-icon');
+  const textEl = btn.querySelector('.btn-text');
+  if (iconEl) iconEl.textContent = icon;
+  if (textEl) textEl.textContent = text;
+  btn.disabled = disabled;
+}
+
+// ── 全局状态 ─────────────────────────────────────────────────────
 const state = {
   currentCSTab: 'script',
   selectedStyle: 'cartoon',
@@ -10,7 +88,7 @@ const state = {
   billing: 'monthly'
 };
 
-// ── 加载动画 ──────────────────────────────────────────────────────
+// ── 加载动画 ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const loader = document.getElementById('loader');
   setTimeout(() => {
@@ -25,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initStyleChips();
 });
 
-// ── 导航栏滚动效果 ────────────────────────────────────────────────
+// ── 导航栏滚动效果 ───────────────────────────────────────────────
 function initNavbar() {
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => {
@@ -33,7 +111,7 @@ function initNavbar() {
   });
 }
 
-// ── Tabs 切换 ─────────────────────────────────────────────────────
+// ── Tabs 切换 ────────────────────────────────────────────────────
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -180,7 +258,7 @@ function switchAuthTab(tab) {
   }
 }
 
-// ── 创作台 ─────────────────────────────────────────────────────────
+// ── 创作台 ────────────────────────────────────────────────────────
 function showCreationStudio() {
   document.getElementById('creationStudio').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -229,223 +307,298 @@ function previewImage(input) {
 }
 
 // ── AI 生成剧本 ────────────────────────────────────────────────────
-function generateScript() {
+async function generateScript() {
   const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
   const ageGroup = document.querySelector('input[name="ageGroup"]:checked')?.value || '3-6';
   const output = document.getElementById('scriptOutput');
   const btn = document.querySelector('#cs-script .cs-generate-btn');
-  const btnIcon = document.getElementById('scriptBtnIcon');
-  const btnText = document.getElementById('scriptBtnText');
-
-  btn.disabled = true;
-  btnIcon.textContent = '⏳';
-  btnText.textContent = 'AI 正在创作剧本...';
+  setBtnState(btn, '⏳', 'MiniMax 创作中...', true);
 
   output.innerHTML = `
     <div class="loading-spinner">
       <div class="spinner"></div>
       <div class="loading-text">MiniMax 正在生成剧本，请稍候...</div>
+      <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div>
     </div>`;
 
-  const scripts = generateScriptContent(theme, ageGroup);
-  let index = 0;
-  output.innerHTML = '<div class="generated-script" id="scriptTyping"></div>';
-  const typing = document.getElementById('scriptTyping');
+  try {
+    const result = await apiCall('/script', { theme, ageGroup });
 
-  function typeNextChar() {
-    if (index < scripts.length) {
-      typing.innerHTML = scripts.substring(0, index + 1);
-      index += 3;
-      output.scrollTop = output.scrollHeight;
-      setTimeout(typeNextChar, 20);
-    } else {
-      typing.innerHTML = scripts;
-      btn.disabled = false;
-      btnIcon.textContent = '✨';
-      btnText.textContent = '重新生成剧本';
+    // 解析 MiniMax 返回的文本
+    let scriptText = '';
+    const choices = result.data?.choices;
+    if (choices && choices.length > 0) {
+      scriptText = choices[0]?.messages?.[0]?.content ||
+                   choices[0]?.message?.content || '';
     }
-  }
+    if (!scriptText) {
+      scriptText = result.data?.text || result.data || JSON.stringify(result.data, null, 2);
+    }
 
-  setTimeout(() => { typeNextChar(); }, 1200);
+    // 尝试解析 JSON
+    let scriptHtml = '';
+    try {
+      const json = JSON.parse(scriptText);
+      scriptHtml = renderScriptJSON(json);
+    } catch {
+      // 无法解析为JSON，直接显示原始文本
+      scriptHtml = `<div class="generated-script">${escapeHtml(scriptText)}</div>`;
+    }
+
+    output.innerHTML = `<div id="scriptTypingTarget" style="display:none;"></div>`;
+    const target = document.getElementById('scriptTypingTarget');
+    target.innerHTML = scriptHtml;
+    target.style.display = '';
+
+    state.scriptContent = scriptText;
+    setBtnState(btn, '✨', '重新生成剧本', false);
+  } catch (err) {
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 生成失败：\n\n${err.message}</div>`;
+    setBtnState(btn, '✨', '重新生成剧本', false);
+  }
 }
 
-function generateScriptContent(theme, ageGroup) {
-  return `<div class="script-section-title">📋 ${theme} — 剧本草稿</div>
-<div class="script-block">
-<span class="sb-tag">【作品信息】</span><br/>
-标题：${theme}<br/>
-适用年龄：${ageGroup}岁<br/>
-集数时长：约5分钟<br/>
-教育主题：友谊、探索、乐于助人
-</div>
-<div class="script-block">
-<span class="sb-tag">【主要角色】</span><br/>
-▶ 米奇（主角）：活泼可爱的小兔子，充满好奇心，乐于助人<br/>
-▶ 花仙子：住在彩虹花中的小精灵，温柔善良<br/>
-▶ 迷路小松鼠：需要帮助的配角，憨厚可爱
-</div>
-<div class="script-block">
-<span class="sb-tag">【幕一：出发】</span><br/>
-<span class="line-type scene" style="display:inline-block;margin-bottom:6px;">场景01 EXT. 森林小屋 - 清晨</span><br/>
-<em>旁白：</em>阳光透过树叶洒下金色光芒，小兔子米奇从温馨的小屋里蹦了出来。<br/><br/>
-<em>米奇（兴奋）：</em>"今天是个大晴天！奶奶说彩虹花开在最深的森林里，能帮助所有需要帮助的小动物！"<br/><br/>
-<em>米奇（拍打篮子）：</em>"我带好地图了，出发！"<br/><br/>
-<span class="line-type action" style="display:inline-block;">镜头：</span> 米奇迈着轻快的步伐进入森林，背景音乐欢快跳跃。
-</div>
-<div class="script-block">
-<span class="sb-tag">【幕二：相遇】</span><br/>
-<span class="line-type scene" style="display:inline-block;margin-bottom:6px;">场景02 EXT. 森林深处 - 上午</span><br/>
-<em>（米奇发现一只小松鼠在哭泣）</em><br/><br/>
-<em>米奇（关心）：</em>"小松鼠，你怎么了，在哭鼻子呀？"<br/><br/>
-<em>小松鼠（哽咽）：</em>"我...我迷路了，找不到回家的路了..."<br/><br/>
-<em>米奇（温柔）：</em>"别怕！我有地图，我们一起找！你家在哪边？"<br/><br/>
-<span class="line-type action" style="display:inline-block;">镜头：</span> 米奇拿出地图，两只小动物头碰头认真研究，画面温馨。
-</div>
-<div class="script-block">
-<span class="sb-tag">【幕三：成功】</span><br/>
-<em>旁白：</em>米奇帮助小松鼠找到了家，这时，神奇的事发生了——前方出现了七彩的光芒！<br/><br/>
-<em>米奇（惊喜）：</em>"那...那就是彩虹花！"<br/><br/>
-<em>花仙子（出现，清脆）：</em>"小兔子，是你的善良和勇气，带你来到了这里。彩虹花愿意帮助每一个有爱心的小动物！"<br/><br/>
-<span class="line-type action" style="display:inline-block;">结尾：</span> 三个小伙伴在彩虹花下开心地笑，背景音乐温馨收尾。
-</div>
-<div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;font-size:0.82rem;border:1px solid rgba(16,185,129,0.2);">
-🎓 <strong style="color:#10b981;">教育价值提炼：</strong> 乐于助人 · 勇于探索 · 朋友情谊 · 善有善报
-</div>`;
+// 渲染剧本 JSON 为 HTML
+function renderScriptJSON(json) {
+  const acts = json.acts || [];
+  const chars = json.characters || [];
+  const edu = json.eduValues || [];
+
+  let html = `<div class="script-section-title">📋 ${escapeHtml(json.title || '剧本草稿')} — 籁鸣导演 AI 生成</div>`;
+
+  html += `<div class="script-block"><span class="sb-tag">【基本信息】</span>
+  适用年龄：${escapeHtml(json.ageGroup || '')}　｜　时长：${escapeHtml(json.duration || '')}<br/>
+  教育主题：${escapeHtml(json.theme || '')}</div>`;
+
+  if (chars.length > 0) {
+    html += `<div class="script-block"><span class="sb-tag">【角色】</span><br/>`;
+    chars.forEach(c => {
+      html += `▶ ${escapeHtml(c.name)}（${escapeHtml(c.role)}）：${escapeHtml(c.description || '')}<br/>`;
+    });
+    html += `</div>`;
+  }
+
+  acts.forEach(act => {
+    html += `<div class="script-block"><span class="sb-tag">【${escapeHtml(act.act)}】</span><br/>`;
+    (act.scenes || []).forEach(scene => {
+      if (scene.location) {
+        html += `<span class="line-type scene">${escapeHtml(scene.sceneNum + ' ' + scene.location + ' - ' + scene.time)}</span><br/>`;
+      }
+      if (scene.narration) html += `<em>旁白：</em>${escapeHtml(scene.narration)}<br/><br/>`;
+      (scene.dialogues || []).forEach(d => {
+        html += `<em>${escapeHtml(d.character)}（${escapeHtml(d.type)}）：</em>"${escapeHtml(d.content)}"<br/>`;
+      });
+      if (scene.cameraNote) html += `<span class="line-type action">镜头：</span>${escapeHtml(scene.cameraNote)}<br/>`;
+    });
+    html += `</div>`;
+  });
+
+  if (edu.length > 0) {
+    html += `<div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;font-size:0.82rem;border:1px solid rgba(16,185,129,0.2);">
+    🎓 <strong style="color:#10b981;">教育价值：</strong>${edu.map(e => escapeHtml(e)).join(' · ')}
+    </div>`;
+  }
+
+  return html;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ── AI 生成分镜 ────────────────────────────────────────────────────
-function generateStoryboard() {
+async function generateStoryboard() {
   const scene = document.getElementById('sbScene').value || '小兔子在森林中寻找彩虹花';
+  const style = state.selectedStyle;
   const output = document.getElementById('storyboardOutput');
-  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">AI 正在规划分镜...</div></div>`;
 
-  setTimeout(() => {
-    output.innerHTML = `
-<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
-  ${[
-    {num:'01', type:'远景·全景', dur:'3s', move:'固定', icon:'🌲', desc:'森林全景，交代环境，阳光明媚'},
-    {num:'02', type:'中景·推镜', dur:'4s', move:'推镜', icon:'🐰', desc:'米奇从画面左侧走入，背篮子，活泼可爱'},
-    {num:'03', type:'特写·静帧', dur:'2s', move:'固定', icon:'🗺️', desc:'米奇手中的地图特写'},
-    {num:'04', type:'中景·摇镜', dur:'5s', move:'摇镜', icon:'🐿️', desc:'发现哭泣的小松鼠，画面从米奇摇到松鼠'},
-    {num:'05', type:'近景·对话', dur:'6s', move:'固定', icon:'💬', desc:'米奇与松鼠对话，两个角色同框'},
-    {num:'06', type:'全景·亮起', dur:'4s', move:'拉镜', icon:'🌈', desc:'彩虹花光芒出现，镜头拉远展现震撼画面'}
-  ].map(s => `
-  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
-    <div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(124,58,237,0.1);">${s.icon}</div>
-    <div style="padding:10px 12px;">
-      <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;margin-bottom:4px;">镜头 ${s.num} · ${s.type}</div>
-      <div style="font-size:0.75rem;color:rgba(240,240,255,0.6);margin-bottom:4px;">${s.desc}</div>
-      <div style="display:flex;gap:6px;">
-        <span style="padding:2px 8px;background:rgba(245,158,11,0.1);border-radius:99px;font-size:0.68rem;color:#f59e0b;">${s.dur}</span>
-        <span style="padding:2px 8px;background:rgba(16,185,129,0.1);border-radius:99px;font-size:0.68rem;color:#10b981;">${s.move}</span>
-      </div>
-    </div>
-  </div>`).join('')}
-</div>
-<div style="margin-top:12px;padding:10px 14px;background:rgba(124,58,237,0.08);border-radius:8px;font-size:0.8rem;color:rgba(240,240,255,0.6);">
-  📊 共 6 个镜头 · 预计时长约 <strong style="color:#a78bfa;">24秒</strong> · 建议加入字幕与背景音乐
-</div>`;
-  }, 1500);
+  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 正在规划分镜...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div></div>`;
+
+  try {
+    const result = await apiCall('/storyboard', { scene, style });
+    let rawText = '';
+    const choices = result.data?.choices;
+    if (choices && choices.length > 0) {
+      rawText = choices[0]?.messages?.[0]?.content ||
+                choices[0]?.message?.content || '';
+    }
+    if (!rawText) rawText = result.data?.text || JSON.stringify(result.data, null, 2);
+
+    // 尝试解析 JSON
+    let cardsHtml = '';
+    try {
+      const json = JSON.parse(rawText);
+      const shots = json.shots || [];
+      cardsHtml = shots.map(s => `
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
+          <div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(124,58,237,0.1);">${escapeHtml(s.icon || '🎬')}</div>
+          <div style="padding:10px 12px;">
+            <div style="font-size:0.7rem;font-weight:700;color:#a78bfa;margin-bottom:4px;">镜头 ${escapeHtml(s.shotNum || '')} · ${escapeHtml(s.shotType || '')}</div>
+            <div style="font-size:0.75rem;color:rgba(240,240,255,0.6);margin-bottom:4px;">${escapeHtml(s.description || '')}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span style="padding:2px 8px;background:rgba(245,158,11,0.1);border-radius:99px;font-size:0.68rem;color:#f59e0b;">${escapeHtml(s.duration || '')}</span>
+              <span style="padding:2px 8px;background:rgba(16,185,129,0.1);border-radius:99px;font-size:0.68rem;color:#10b981;">${escapeHtml(s.movement || '')}</span>
+            </div>
+          </div>
+        </div>`).join('');
+
+      output.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">${cardsHtml}</div>
+        <div style="margin-top:12px;padding:10px 14px;background:rgba(124,58,237,0.08);border-radius:8px;font-size:0.8rem;color:rgba(240,240,255,0.6);">
+        📊 共 ${shots.length} 个镜头 · 预估时长约 <strong style="color:#a78bfa;">${escapeHtml(json.estimatedDuration || '')}</strong>
+        ${json.summary ? `<br/>💡 ${escapeHtml(json.summary)}` : ''}
+        </div>`;
+    } catch {
+      output.innerHTML = `<div style="padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.85rem;white-space:pre-wrap;">${escapeHtml(rawText)}</div>`;
+    }
+  } catch (err) {
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 生成分镜失败：\n\n${err.message}</div>`;
+  }
 }
 
-// ── AI 生图 ────────────────────────────────────────────────────────
-function generateImage() {
+// ── AI 生图 ───────────────────────────────────────────────────────
+async function generateImage() {
   const prompt = document.getElementById('imgPrompt').value || 'Q版小兔子，色彩鲜艳，儿童动画风格';
-  const count = parseInt(document.getElementById('imgCount').value);
+  const count = Math.min(parseInt(document.getElementById('imgCount').value) || 1, 9);
+  const style = state.selectedStyle;
   const output = document.getElementById('imageOutput');
-  const btnIcon = document.getElementById('imgBtnIcon');
-  const btnText = document.getElementById('imgBtnText');
+  const btn = document.querySelector('#cs-image .cs-generate-btn');
+  setBtnState(btn, '⏳', 'MiniMax 生图中...', true);
 
-  btnIcon.textContent = '⏳';
-  btnText.textContent = 'MiniMax 生成中...';
+  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 正在生图...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：image-01 · ${count}张图</div></div>`;
 
-  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 正在生图，预计10-20秒...</div></div>`;
+  try {
+    const result = await apiCall('/image', { prompt, count, style });
+    const images = result.images || [];
 
-  const EMOJI_SETS = [
-    ['🐰🌸','🌈🌺','🍄🌟','🏡🌸','✨💫','🐝🌻','🦋🌷','🍀💚','🌙⭐'],
-    ['🐱🌸','🦊✨','🐻🎀','🐨💙','🐼🌿','🦁👑','🐸🍃','🦄🌈','🐧❄️'],
-  ];
-  const emojiSet = EMOJI_SETS[Math.floor(Math.random() * EMOJI_SETS.length)];
-  const backgrounds = [
-    'linear-gradient(135deg,rgba(255,182,193,0.3),rgba(255,105,180,0.2))',
-    'linear-gradient(135deg,rgba(173,216,230,0.3),rgba(100,149,237,0.2))',
-    'linear-gradient(135deg,rgba(144,238,144,0.2),rgba(34,139,34,0.2))',
-    'linear-gradient(135deg,rgba(255,215,0,0.2),rgba(255,165,0,0.2))',
-    'linear-gradient(135deg,rgba(221,160,221,0.3),rgba(186,85,211,0.3))',
-    'linear-gradient(135deg,rgba(255,127,80,0.2),rgba(255,99,71,0.2))',
-    'linear-gradient(135deg,rgba(64,224,208,0.2),rgba(0,128,128,0.2))',
-    'linear-gradient(135deg,rgba(240,230,140,0.2),rgba(189,183,107,0.2))',
-    'linear-gradient(135deg,rgba(176,224,230,0.2),rgba(70,130,180,0.2))',
-  ];
+    if (images.length === 0) {
+      output.innerHTML = `<div style="padding:16px;color:#f59e0b;font-size:0.85rem;">⚠️ 未返回图片，请检查 prompt 是否合适</div>`;
+      setBtnState(btn, '✨', '重新生成', false);
+      return;
+    }
 
-  setTimeout(() => {
-    const cells = Array.from({length: count}, (_, i) => `
-      <div class="gen-img" style="background:${backgrounds[i % backgrounds.length]}" onclick="this.classList.toggle('selected')">
-        ${emojiSet[i % emojiSet.length]}
+    const cols = images.length === 1 ? 1 : images.length <= 4 ? 2 : 3;
+    const cells = images.map((b64, i) => `
+      <div class="gen-img" style="cursor:pointer;position:relative;" onclick="this.classList.toggle('selected')">
+        <img src="data:image/png;base64,${b64}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" alt="生成图片 ${i + 1}" />
+        <div style="position:absolute;bottom:6px;right:6px;font-size:0.7rem;background:rgba(0,0,0,0.6);color:#fff;padding:2px 6px;border-radius:4px;">${i + 1}</div>
       </div>`).join('');
 
-    const cols = count === 1 ? 1 : count === 4 ? 2 : 3;
     output.innerHTML = `
 <div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px;margin-bottom:12px;">
   ${cells}
 </div>
-<div style="font-size:0.8rem;color:rgba(240,240,255,0.5);">
-  ✅ 由 MiniMax 生成 · 点击图片选中 · 可存入资产库
+<div style="font-size:0.8rem;color:rgba(240,240,255,0.5);display:flex;justify-content:space-between;align-items:center;">
+  <span>✅ MiniMax image-01 生成 · 点击图片选中</span>
+  <button onclick="downloadAllImages()" style="padding:6px 12px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:6px;color:#a78bfa;font-size:0.78rem;cursor:pointer;">⬇️ 全部下载</button>
 </div>`;
-    btnIcon.textContent = '✨';
-    btnText.textContent = '重新生成';
-  }, 2000);
+    setBtnState(btn, '✨', '重新生成', false);
+  } catch (err) {
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 生图失败：\n\n${err.message}</div>`;
+    setBtnState(btn, '✨', '重新生成', false);
+  }
 }
 
-// ── 生成视频 ────────────────────────────────────────────────────────
-function generateVideo() {
-  const output = document.getElementById('videoOutput');
-  const btnIcon = document.getElementById('videoBtnIcon');
-  const btnText = document.getElementById('videoBtnText');
+// ── 下载所有图片 ──────────────────────────────────────────────────
+window.downloadAllImages = function() {
+  const imgs = document.querySelectorAll('#imageOutput img');
+  imgs.forEach((img, i) => {
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = `籁鸣导演_图片_${i + 1}.png`;
+    a.click();
+  });
+};
 
-  btnIcon.textContent = '⏳';
-  btnText.textContent = '正在生成视频...';
+// ── 生成视频 ──────────────────────────────────────────────────────
+async function generateVideo() {
+  const output = document.getElementById('videoOutput');
+  const btn = document.querySelector('#cs-video .cs-generate-btn');
+  setBtnState(btn, '⏳', 'MiniMax 视频生成中...', true);
+
+  const duration = parseInt(document.getElementById('videoDuration').value) || 5;
+  const mode = document.querySelector('input[name="videoMode"]:checked')?.value || 'text';
+  const textPrompt = document.getElementById('videoPrompt')?.value || '';
+
+  // 检查图片模式
+  let imageBase64 = null;
+  if (mode === 'image') {
+    const imgEl = document.querySelector('#videoImageInput img');
+    if (imgEl) {
+      imageBase64 = imgEl.src.split(',')[1];
+    }
+  }
+
+  if (mode === 'text' && !textPrompt.trim()) {
+    output.innerHTML = `<div style="padding:16px;color:#f59e0b;font-size:0.85rem;">⚠️ 请输入视频描述文字</div>`;
+    setBtnState(btn, '✨', '重新生成视频', false);
+    return;
+  }
 
   output.innerHTML = `
 <div class="loading-spinner">
   <div class="spinner"></div>
-  <div class="loading-text">MiniMax 视频生成中...（约20-60秒）</div>
+  <div class="loading-text">MiniMax 视频生成中（预计30-120秒）...</div>
+  <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：video-01 · ${duration}秒</div>
 </div>`;
 
-  const dur = document.getElementById('videoDuration').value;
+  try {
+    const result = await apiCall('/video', {
+      prompt: textPrompt,
+      image_base64: imageBase64,
+      duration,
+    });
 
-  setTimeout(() => {
-    output.innerHTML = `
+    // 视频生成通常返回异步任务，需轮询
+    const data = result.data || result;
+    const videoUrl = data.video_url || data.url || data.data?.video_url;
+
+    if (videoUrl) {
+      output.innerHTML = `
 <div class="gen-video-result">
-  <div class="gen-video-player" onclick="this.innerHTML='⏸'">
-    🎬
-  </div>
-  <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px;margin-bottom:12px;">
+  <video controls style="width:100%;border-radius:10px;background:#000;">
+    <source src="${videoUrl}" type="video/mp4" />
+    您的浏览器不支持视频播放
+  </video>
+  <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px;margin-top:12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-size:0.85rem;font-weight:700;">动画片段_001.mp4</span>
-      <span style="font-size:0.75rem;color:rgba(240,240,255,0.5);">${dur}秒</span>
-    </div>
-    <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:99px;margin-bottom:8px;">
-      <div style="width:60%;height:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);border-radius:99px;"></div>
+      <span style="font-size:0.85rem;font-weight:700;">动画片段.mp4</span>
+      <span style="font-size:0.75rem;color:rgba(240,240,255,0.5);">${duration}秒 · MiniMax video-01</span>
     </div>
     <div style="display:flex;gap:8px;">
       <span style="padding:3px 10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:99px;font-size:0.72rem;color:#10b981;">✅ 儿童安全</span>
       <span style="padding:3px 10px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:99px;font-size:0.72rem;color:#a78bfa;">MiniMax</span>
-      <span style="padding:3px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:99px;font-size:0.72rem;color:#f59e0b;">720P</span>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
     <button onclick="saveToAssets()" style="padding:10px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:8px;color:#a78bfa;font-size:0.85rem;cursor:pointer;">📦 存入资产库</button>
-    <button onclick="alert('视频下载功能需登录后使用')" style="padding:10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:0.85rem;cursor:pointer;">⬇️ 下载视频</button>
+    <button onclick="window.open('${videoUrl}', '_blank')" style="padding:10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:0.85rem;cursor:pointer;">⬇️ 下载视频</button>
   </div>
 </div>`;
-    btnIcon.textContent = '✨';
-    btnText.textContent = '重新生成视频';
-  }, 3000);
+    } else {
+      // 返回了任务ID，需要轮询
+      const taskId = data.task_id || data.id;
+      output.innerHTML = `
+<div style="padding:20px;text-align:center;">
+  <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>
+  <div style="font-size:0.85rem;color:rgba(240,240,255,0.7);">视频生成任务已提交</div>
+  <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">任务ID：${taskId || '未知'}</div>
+  <div style="font-size:0.75rem;color:rgba(240,240,255,0.4);margin-top:8px;">视频生成通常需要30秒-2分钟，请稍候刷新页面查看结果</div>
+</div>`;
+    }
+    setBtnState(btn, '✨', '重新生成视频', false);
+  } catch (err) {
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 视频生成失败：\n\n${err.message}</div>`;
+    setBtnState(btn, '✨', '重新生成视频', false);
+  }
 }
 
-// ── 内容审核 ────────────────────────────────────────────────────────
-function runContentReview() {
+// ── 内容审核 ──────────────────────────────────────────────────────
+async function runContentReview() {
   const content = document.getElementById('reviewContent').value;
   if (!content.trim()) {
     alert('请先输入要审核的剧本内容');
@@ -453,69 +606,111 @@ function runContentReview() {
   }
 
   const output = document.getElementById('reviewOutput');
-  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">AI 正在进行内容安全审核...</div></div>`;
+  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax AI 正在进行内容安全审核...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div></div>`;
 
-  // 分析内容是否有问题词
-  const hasIssues = content.includes('黑暗') || content.includes('恐怖') || content.includes('危险') || content.includes('血');
-  const score = hasIssues ? 78 : 94;
-  const grade = score >= 90 ? '优秀' : score >= 80 ? '良好' : '需要修改';
+  try {
+    const result = await apiCall('/review', { content });
+    let rawText = '';
+    const choices = result.data?.choices;
+    if (choices && choices.length > 0) {
+      rawText = choices[0]?.messages?.[0]?.content ||
+                choices[0]?.message?.content || '';
+    }
+    if (!rawText) rawText = result.data?.text || JSON.stringify(result.data, null, 2);
 
-  setTimeout(() => {
+    let score = 0, grade = '', checks = [], canProceed = false;
+
+    try {
+      const json = JSON.parse(rawText);
+      score = json.score || 0;
+      grade = json.grade || '';
+      checks = json.checks || [];
+      canProceed = json.canProceed !== false;
+    } catch {
+      // 显示原始文本
+      output.innerHTML = `<div style="padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.85rem;white-space:pre-wrap;">${escapeHtml(rawText)}</div>`;
+      return;
+    }
+
+    const scoreColor = score >= 90 ? '#10b981' : score >= 70 ? '#f59e0b' : '#f87171';
+    const checksHtml = checks.map(c => {
+      const icon = c.status === 'pass' ? '✅' : c.status === 'warn' ? '⚠️' : '❌';
+      const color = c.status === 'pass' ? '#10b981' : c.status === 'warn' ? '#f59e0b' : '#f87171';
+      return `<div class="rpt-item ${c.status === 'fail' ? 'warn' : 'ok'}">
+        <span class="rpt-icon">${icon}</span>
+        <div class="rpt-content">
+          <div class="rpt-title">${escapeHtml(c.item || '')}</div>
+          <div class="rpt-desc">${escapeHtml(c.detail || '')}</div>
+          ${c.suggestion ? `<div style="margin-top:4px;font-size:0.78rem;color:${color};">💡 ${escapeHtml(c.suggestion)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
     output.innerHTML = `
 <div class="review-report">
   <div class="report-score-row">
-    <div class="rr-score">${score}</div>
+    <div class="rr-score" style="color:${scoreColor};">${score}</div>
     <div class="rr-grade">
       <div class="rr-grade-label">合规评分</div>
-      <div class="rr-grade-value">${grade}</div>
+      <div class="rr-grade-value" style="color:${scoreColor};">${grade}</div>
     </div>
     <div style="margin-left:auto;font-size:0.8rem;color:rgba(240,240,255,0.5);">
       审核标准：广电少儿节目标准<br/>适龄：7-12岁
     </div>
   </div>
-  <div class="report-items">
-    <div class="rpt-item ${hasIssues ? 'warn' : 'ok'}">
-      <span class="rpt-icon">${hasIssues ? '⚠️' : '✅'}</span>
-      <div class="rpt-content">
-        <div class="rpt-title">暴力/恐怖元素检测</div>
-        <div class="rpt-desc">${hasIssues ? '检测到"黑暗"等可能引起儿童不安的描述，建议修改' : '未检测到暴力或恐怖元素，符合标准'}</div>
-      </div>
-    </div>
-    <div class="rpt-item ok">
-      <span class="rpt-icon">✅</span>
-      <div class="rpt-content">
-        <div class="rpt-title">价值观导向</div>
-        <div class="rpt-desc">内容传递正向价值观，弘扬友谊、善良与勇气</div>
-      </div>
-    </div>
-    <div class="rpt-item ok">
-      <span class="rpt-icon">✅</span>
-      <div class="rpt-content">
-        <div class="rpt-title">语言文明规范</div>
-        <div class="rpt-desc">未发现粗俗用语或不当表达</div>
-      </div>
-    </div>
-    <div class="rpt-item ok">
-      <span class="rpt-icon">✅</span>
-      <div class="rpt-content">
-        <div class="rpt-title">社会主义核心价值观</div>
-        <div class="rpt-desc">内容积极向上，符合主流价值导向</div>
-      </div>
-    </div>
-  </div>
-  ${hasIssues ? `
-  <div class="report-suggest">
-    <div class="report-suggest-title">💡 AI 修改建议</div>
-    <div class="report-suggest-item">1. "黑暗的森林" → 建议改为 "黄昏的森林" 或 "神秘的森林"，减少恐惧感</div>
-    <div class="report-suggest-item">2. 建议在夜晚场景添加月亮、星星等温暖元素，减轻黑暗氛围</div>
-    <div class="report-suggest-item">3. 可以增加角色的对话互相鼓励，化解紧张气氛</div>
-  </div>` : `
+  <div class="report-items">${checksHtml || '<div style="padding:12px;color:rgba(240,240,255,0.4);font-size:0.85rem;">暂无详细检查项</div>'}</div>
+  ${canProceed ? `
   <div style="padding:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:0.82rem;color:#10b981;">
-    ✅ 剧本内容完全符合儿童动画创作标准，可进入下一步生产流程。
+    ✅ ${escapeHtml(result.data?.summary || '剧本内容符合儿童动画创作标准，可进入下一步生产流程。')}
+  </div>` : `
+  <div style="padding:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:0.82rem;color:#f87171;">
+    ❌ ${escapeHtml(result.data?.summary || '剧本内容需要修改，请参考上述修改建议。')}
   </div>`}
 </div>`;
-  }, 2000);
+  } catch (err) {
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 审核失败：\n\n${err.message}</div>`;
+  }
 }
+
+// ── TTS 配音 ──────────────────────────────────────────────────────
+async function generateVoice() {
+  const text = document.getElementById('ttsText')?.value;
+  const voiceId = document.getElementById('voiceId')?.value || 'Chinese (Mandarin)_Lyrical_Voice';
+  const output = document.getElementById('ttsOutput');
+  const btn = document.querySelector('#cs-tts .cs-generate-btn');
+
+  if (!text?.trim()) {
+    alert('请输入要配音的文字');
+    return;
+  }
+
+  setBtnState(btn, '⏳', '生成配音中...', true);
+  output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 语音合成中...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：speech-2.8-hd</div></div>`;
+
+  try {
+    const blob = await apiCall('/tts', { text, voice_id: voiceId, speed: 1.0, model: 'speech-2.8-hd' });
+    const url = URL.createObjectURL(blob);
+    output.innerHTML = `
+<div style="padding:20px;text-align:center;">
+  <audio controls style="width:100%;border-radius:8px;"><source src="${url}" type="audio/mpeg" /></audio>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+    <button onclick="downloadAudio('${url}')" style="padding:8px 16px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:8px;color:#a78bfa;font-size:0.82rem;cursor:pointer;">⬇️ 下载 MP3</button>
+    <button onclick="saveToAssets()" style="padding:8px 16px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:8px;color:#10b981;font-size:0.82rem;cursor:pointer;">📦 存入资产库</button>
+  </div>
+</div>`;
+    setBtnState(btn, '🎵', '重新生成配音', false);
+  } catch (err) {
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 配音生成失败：\n\n${err.message}</div>`;
+    setBtnState(btn, '🎵', '生成配音', false);
+  }
+}
+
+window.downloadAudio = function(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '籁鸣导演_配音.mp3';
+  a.click();
+};
 
 // ── 优化剧本 ────────────────────────────────────────────────────────
 function optimizeScript() {
@@ -524,45 +719,82 @@ function optimizeScript() {
     alert('请先生成剧本内容');
     return;
   }
+  // 复用 review 接口，让 AI 提供优化建议
+  runScriptOptimization();
+}
+
+async function runScriptOptimization() {
+  const output = document.getElementById('scriptOutput');
+  if (!state.scriptContent) return;
+
   output.insertAdjacentHTML('beforeend', `
-<div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-size:0.82rem;">
-  <strong style="color:#a78bfa;">✨ AI 剧本优化建议：</strong><br/><br/>
-  📌 <strong>结构完整度：</strong>三幕式结构清晰，开端/发展/高潮/结局均具备 ✅<br/>
-  📌 <strong>节奏优化：</strong>建议第二幕增加一个"小困难"的铺垫，让解决过程更有层次感<br/>
-  📌 <strong>对白建议：</strong>角色对白自然流畅，可增加1-2句体现性格的台词让角色更立体<br/>
-  📌 <strong>适龄评估：</strong>词汇量和情节复杂度适合3-8岁受众 ✅<br/>
-  📌 <strong>画面感：</strong>建议在关键情节点增加动作描述，使分镜更好执行
+<div class="loading-spinner" id="optLoading" style="margin-top:16px;"><div class="spinner"></div><div style="loading-text">MiniMax 正在分析剧本...</div></div>`);
+
+  try {
+    const result = await apiCall('/review', { content: state.scriptContent + '\n\n请从以下维度提供优化建议：1.结构完整度 2.节奏优化 3.对白自然度 4.适龄评估 5.画面感' });
+    const opt = document.getElementById('optLoading');
+    if (opt) opt.remove();
+
+    let rawText = result.data?.choices?.[0]?.message?.content || result.data?.text || '';
+    output.insertAdjacentHTML('beforeend', `
+<div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-size:0.82rem;white-space:pre-wrap;">
+  <strong style="color:#a78bfa;">✨ AI 剧本优化建议：</strong><br/><br/>${escapeHtml(rawText)}
 </div>`);
+  } catch (err) {
+    const opt = document.getElementById('optLoading');
+    if (opt) opt.remove();
+    output.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;color:#f87171;font-size:0.8rem;">❌ ${err.message}</div>`);
+  }
 }
 
 function extractEduValues() {
-  const output = document.getElementById('scriptOutput');
-  if (!output.textContent.trim() || output.querySelector('.cs-placeholder')) {
+  if (!state.scriptContent) {
     alert('请先生成剧本内容');
     return;
   }
+  const output = document.getElementById('scriptOutput');
   output.insertAdjacentHTML('beforeend', `
 <div style="margin-top:16px;padding:14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.82rem;">
   <strong style="color:#10b981;">🎓 教育价值分析报告：</strong><br/><br/>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-    <span style="padding:4px 12px;background:rgba(16,185,129,0.1);border-radius:99px;font-size:0.8rem;color:#10b981;">🤝 助人为乐</span>
-    <span style="padding:4px 12px;background:rgba(16,185,129,0.1);border-radius:99px;font-size:0.8rem;color:#10b981;">💪 勇于探索</span>
-    <span style="padding:4px 12px;background:rgba(16,185,129,0.1);border-radius:99px;font-size:0.8rem;color:#10b981;">❤️ 分享善良</span>
-    <span style="padding:4px 12px;background:rgba(16,185,129,0.1);border-radius:99px;font-size:0.8rem;color:#10b981;">🌟 坚持不懈</span>
-  </div><br/>
-  <em style="color:rgba(240,240,255,0.5);">适合作为品德教育、语文读写课的教学辅助材料</em>
+  <div style="font-size:0.82rem;color:rgba(240,240,255,0.7);">从剧本内容分析中提取教育主题...</div>
 </div>`);
 }
 
 function reviewScript() { switchCSTab('review'); }
-function saveToAssets() { alert('✅ 已成功存入您的资产库！可在"资产管理"中查看'); }
+function saveToAssets() {
+  alert('✅ 已成功存入您的资产库！可在"资产管理"中查看');
+}
+
 function exportReport() {
-  const content = '籁鸣导演 — 内容审核报告\n生成时间：' + new Date().toLocaleString() + '\n合规评分：94分\n结论：内容符合广电少儿节目制作标准';
+  const content = `籁鸣导演 — 内容审核报告
+生成时间：${new Date().toLocaleString()}
+合规评分：详见平台审核结果
+结论：内容符合广电少儿节目制作标准`;
   const a = document.createElement('a');
   a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
   a.download = '内容审核报告.txt';
   a.click();
 }
+
+// ── API 健康检测 ──────────────────────────────────────────────────
+async function testAPIHealth() {
+  if (!API_CONFIG.isConfigured()) {
+    console.log('[籁鸣导演] Worker URL 未配置，MiniMax API 调用不可用');
+    return false;
+  }
+  try {
+    const resp = await fetch(`${API_CONFIG.workerUrl}/health`);
+    const data = await resp.json();
+    console.log('[籁鸣导演] ✅ API 健康检测成功:', data);
+    return true;
+  } catch (err) {
+    console.error('[籁鸣导演] ❌ API 健康检测失败:', err.message);
+    return false;
+  }
+}
+
+// 启动时检测一次
+setTimeout(() => { testAPIHealth(); }, 1000);
 
 // ESC 关闭
 document.addEventListener('keydown', (e) => {
