@@ -3,7 +3,7 @@
    MiniMax API 真实对接版本
    ================================================================ */
 
-// ── MiniMax API 配置 ─────────────────────────────────────────────
+// -- MiniMax API 配置 ---------------------------------------------
 // ⚠️ 部署 Cloudflare Worker 后，将下方的 workerUrl 替换为实际地址
 // 部署步骤：
 //   cd ai-features
@@ -18,7 +18,7 @@ const API_CONFIG = {
   }
 };
 
-// ── API 调用封装 ─────────────────────────────────────────────────
+// -- API 调用封装 -------------------------------------------------
 async function apiCall(endpoint, body) {
   if (!API_CONFIG.isConfigured()) {
     const steps = [
@@ -51,7 +51,7 @@ async function apiCall(endpoint, body) {
   return resp.json();
 }
 
-// ── 辅助：打字机效果 ─────────────────────────────────────────────
+// -- 辅助：打字机效果 ---------------------------------------------
 function typeText(element, text, speed = 15) {
   return new Promise((resolve) => {
     let i = 0;
@@ -71,7 +71,7 @@ function typeText(element, text, speed = 15) {
   });
 }
 
-// ── 辅助：设置按钮状态 ───────────────────────────────────────────
+// -- 辅助：设置按钮状态 -------------------------------------------
 function setBtnState(btn, icon, text, disabled = false) {
   const iconEl = btn.querySelector('.btn-icon');
   const textEl = btn.querySelector('.btn-text');
@@ -80,7 +80,7 @@ function setBtnState(btn, icon, text, disabled = false) {
   btn.disabled = disabled;
 }
 
-// ── 全局状态 ─────────────────────────────────────────────────────
+// -- 全局状态 -----------------------------------------------------
 const state = {
   currentCSTab: 'script',
   selectedStyle: 'cartoon',
@@ -90,7 +90,7 @@ const state = {
   lastScriptData: null,   // 最新剧本数据（用于下载）
 };
 
-// ── 加载动画 ─────────────────────────────────────────────────────
+// -- 加载动画 -----------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
   const loader = document.getElementById('loader');
   setTimeout(() => {
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCustomDuration();
 });
 
-// ── 自定义时长切换 ───────────────────────────────────────────────
+// -- 自定义时长切换 -----------------------------------------------
 function initCustomDuration() {
   const epDuration = document.getElementById('epDuration');
   const customDuration = document.getElementById('customDuration');
@@ -118,7 +118,7 @@ function initCustomDuration() {
   });
 }
 
-// ── 导航栏滚动效果 ───────────────────────────────────────────────
+// -- 导航栏滚动效果 -----------------------------------------------
 function initNavbar() {
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => {
@@ -126,7 +126,7 @@ function initNavbar() {
   });
 }
 
-// ── Tabs 切换 ────────────────────────────────────────────────────
+// -- Tabs 切换 ----------------------------------------------------
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -139,7 +139,7 @@ function initTabs() {
   });
 }
 
-// ── 粒子背景 ─────────────────────────────────────────────────────
+// -- 粒子背景 -----------------------------------------------------
 function initParticles() {
   const canvas = document.getElementById('hero-particles');
   if (!canvas) return;
@@ -183,7 +183,7 @@ function initParticles() {
   draw();
 }
 
-// ── 滚动动画 ─────────────────────────────────────────────────────
+// -- 滚动动画 -----------------------------------------------------
 function initScrollAnimations() {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -202,7 +202,7 @@ function initScrollAnimations() {
   });
 }
 
-// ── 年龄筛选 ─────────────────────────────────────────────────────
+// -- 年龄筛选 -----------------------------------------------------
 function initAgeFilter() {
   document.querySelectorAll('.age-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -220,7 +220,7 @@ function initAgeFilter() {
   });
 }
 
-// ── 风格选择（Demo交互） ──────────────────────────────────────────
+// -- 风格选择（Demo交互） ------------------------------------------
 function initStyleChips() {
   document.querySelectorAll('.style-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -231,12 +231,12 @@ function initStyleChips() {
   });
 }
 
-// ── 平滑滚动 ─────────────────────────────────────────────────────
+// -- 平滑滚动 -----------------------------------------------------
 function scrollToSection(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ── 计费切换 ─────────────────────────────────────────────────────
+// -- 计费切换 -----------------------------------------------------
 function toggleBilling() {
   const toggle = document.getElementById('billingToggle');
   toggle.classList.toggle('active');
@@ -250,7 +250,7 @@ function toggleBilling() {
   });
 }
 
-// ── Auth Modal ─────────────────────────────────────────────────────
+// -- Auth Modal -----------------------------------------------------
 function showModal(tab) {
   const modal = document.getElementById('authModal');
   modal.classList.add('open');
@@ -273,7 +273,7 @@ function switchAuthTab(tab) {
   }
 }
 
-// ── 创作台 ────────────────────────────────────────────────────────
+// -- 创作台 --------------------------------------------------------
 function showCreationStudio() {
   document.getElementById('creationStudio').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -299,14 +299,14 @@ function switchCSTab(tab) {
   });
 }
 
-// ── 风格选择 ──────────────────────────────────────────────────────
+// -- 风格选择 ------------------------------------------------------
 function selectStyle(el) {
   el.closest('.style-grid-select').querySelectorAll('.sgs-item').forEach(i => i.classList.remove('active'));
   el.classList.add('active');
   state.selectedStyle = el.dataset.style;
 }
 
-// ── 视频模式切换 ──────────────────────────────────────────────────
+// -- 视频模式切换 --------------------------------------------------
 function toggleVideoMode(mode) {
   document.getElementById('videoTextInput').style.display = mode === 'text' ? '' : 'none';
   document.getElementById('videoImageInput').style.display = mode === 'image' ? '' : 'none';
@@ -321,7 +321,7 @@ function previewImage(input) {
   reader.readAsDataURL(file);
 }
 
-// ── 工具：从文本中去除 <think> 推理标签 ─────────────────────────
+// -- 工具：从文本中去除 <think> 推理标签 -------------------------
 function stripThinkingTags(text) {
   if (!text) return '';
   return text
@@ -332,7 +332,7 @@ function stripThinkingTags(text) {
     .trim();
 }
 
-// ── 工具：健壮地从文本中提取 JSON ───────────────────────────────
+// -- 工具：健壮地从文本中提取 JSON -------------------------------
 function robustJSONExtract(text) {
   if (!text) return null;
 
@@ -362,7 +362,7 @@ function robustJSONExtract(text) {
   return null;
 }
 
-// ── AI 生成剧本 ────────────────────────────────────────────────────
+// -- AI 生成剧本 ----------------------------------------------------
 async function generateScript() {
   const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
   const ageGroup = document.querySelector('input[name="ageGroup"]:checked')?.value || '3-6';
@@ -638,7 +638,7 @@ function parsePlainTextScript(text) {
   return html;
 }
 
-// ── AI 生成分镜 ────────────────────────────────────────────────────
+// -- AI 生成分镜 ----------------------------------------------------
 async function generateStoryboard() {
   const scene = document.getElementById('sbScene').value || '小兔子在森林中寻找彩虹花';
   const style = state.selectedStyle;
@@ -688,7 +688,7 @@ async function generateStoryboard() {
   }
 }
 
-// ── AI 生图 ───────────────────────────────────────────────────────
+// -- AI 生图 -------------------------------------------------------
 async function generateImage() {
   const prompt = document.getElementById('imgPrompt').value || 'Q版小兔子，色彩鲜艳，儿童动画风格';
   const count = Math.min(parseInt(document.getElementById('imgCount').value) || 1, 9);
@@ -731,7 +731,7 @@ async function generateImage() {
   }
 }
 
-// ── 下载所有图片 ──────────────────────────────────────────────────
+// -- 下载所有图片 --------------------------------------------------
 window.downloadAllImages = function() {
   const imgs = document.querySelectorAll('#imageOutput img');
   imgs.forEach((img, i) => {
@@ -742,7 +742,7 @@ window.downloadAllImages = function() {
   });
 };
 
-// ── 生成视频 ──────────────────────────────────────────────────────
+// -- 生成视频 ------------------------------------------------------
 async function generateVideo() {
   const output = document.getElementById('videoOutput');
   const btn = document.querySelector('#cs-video .cs-generate-btn');
@@ -825,7 +825,7 @@ async function generateVideo() {
   }
 }
 
-// ── 内容审核 ──────────────────────────────────────────────────────
+// -- 内容审核 ------------------------------------------------------
 async function runContentReview() {
   const content = document.getElementById('reviewContent').value;
   if (!content.trim()) {
@@ -907,7 +907,7 @@ async function runContentReview() {
   }
 }
 
-// ── TTS 配音 ──────────────────────────────────────────────────────
+// -- TTS 配音 ------------------------------------------------------
 async function generateVoice() {
   const text = document.getElementById('ttsText')?.value;
   const voiceId = document.getElementById('voiceId')?.value || 'Chinese (Mandarin)_Lyrical_Voice';
@@ -947,7 +947,7 @@ window.downloadAudio = function(url) {
   a.click();
 };
 
-// ── 优化剧本 ────────────────────────────────────────────────────────
+// -- 优化剧本 --------------------------------------------------------
 function optimizeScript() {
   const output = document.getElementById('scriptOutput');
   if (!output.textContent.trim() || output.querySelector('.cs-placeholder')) {
@@ -1086,7 +1086,7 @@ function saveToAssets() {
   alert('✅ 已成功存入您的资产库！可在"资产管理"中查看');
 }
 
-// ── 下载剧本 ─────────────────────────────────────────────────────
+// -- 下载剧本 -----------------------------------------------------
 function downloadScript() {
   const data = state.lastScriptData;
   const text = state.scriptContent;
@@ -1104,11 +1104,11 @@ function downloadScript() {
     const title = data.title || '未命名剧本';
     content = `籁鸣导演 — 动画剧本\n`;
     content += `生成时间：${timestamp}\n`;
-    content += `═`.repeat(40) + '\n';
+    content += `-`.repeat(40) + '\n';
     content += `《${title}》\n`;
     content += `适用年龄：${data.ageGroup || '未指定'}\n`;
     content += `教育主题：${data.theme || '未指定'}\n`;
-    content += `═`.repeat(40) + '\n\n';
+    content += `-`.repeat(40) + '\n\n';
 
     const chars = data.characters || [];
     if (chars.length > 0) {
@@ -1150,7 +1150,7 @@ function downloadScript() {
   URL.revokeObjectURL(a.href);
 }
 
-// ── 导出审核报告 ─────────────────────────────────────────────────
+// -- 导出审核报告 -------------------------------------------------
 function exportReport() {
   const review = state.lastReviewData;
   const timestamp = new Date().toLocaleString('zh-CN');
@@ -1169,11 +1169,11 @@ function exportReport() {
 
   let content = `籁鸣导演 — 内容安全审核报告\n`;
   content += `生成时间：${timestamp}\n`;
-  content += `═`.repeat(40) + '\n';
+  content += `-`.repeat(40) + '\n';
   content += `合规评分：${score} / 100\n`;
   content += `评级结果：${grade}\n`;
   content += `审核结论：${canProceed ? '✅ 通过 — 可进入下一步生产流程' : '❌ 不通过 — 需要修改'}\n`;
-  content += `═`.repeat(40) + '\n\n`;
+  content += `-`.repeat(40) + '\n\n';
 
   if (checks.length > 0) {
     content += `【详细检查项】\n`;
@@ -1191,7 +1191,7 @@ function exportReport() {
   }
 
   if (scriptContent) {
-    content += `═`.repeat(40) + '\n';
+    content += `-`.repeat(40) + '\n';
     content += `【被审核剧本内容（前2000字）】\n`;
     content += scriptContent.substring(0, 2000) + (scriptContent.length > 2000 ? '\n...(内容截断)' : '');
   }
@@ -1202,7 +1202,7 @@ function exportReport() {
   a.click();
 }
 
-// ── API 健康检测 ──────────────────────────────────────────────────
+// -- API 健康检测 --------------------------------------------------
 async function testAPIHealth() {
   if (!API_CONFIG.isConfigured()) {
     console.log('[籁鸣导演] Worker URL 未配置，MiniMax API 调用不可用');
