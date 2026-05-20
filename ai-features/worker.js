@@ -110,6 +110,7 @@ async function handleScript(req, env, headers) {
   }, env);
 
   const data = await resp.json();
+  console.log('[Worker] MiniMax /script raw response:', JSON.stringify(data).substring(0, 800));
   return json({ data, model: 'MiniMax-M2.7-highspeed' }, 200, headers);
 }
 

@@ -341,10 +341,28 @@ async function generateScript() {
     let scriptHtml = '';
     try {
       const json = JSON.parse(scriptText);
-      scriptHtml = renderScriptJSON(json);
-    } catch {
-      // 无法解析为JSON，直接显示原始文本
-      scriptHtml = `<div class="generated-script">${escapeHtml(scriptText)}</div>`;
+      // 检查 JSON 是否有实质内容
+      const hasContent = (json.acts && json.acts.length > 0) ||
+                         (json.scenes && json.scenes.length > 0) ||
+                         (json.content && json.content.trim()) ||
+                         (json.text && json.text.trim());
+      if (!hasContent) {
+        // JSON 结构存在但内容为空，显示原始文本供调试
+        scriptHtml = `<div class="generated-script">${escapeHtml(scriptText)}</div>
+<div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
+  ⚠️ JSON 结构正常但内容为空。MiniMax 返回内容：<br/>
+  <pre style="white-space:pre-wrap;margin-top:8px;font-size:0.72rem;color:rgba(240,240,255,0.6);">${escapeHtml(scriptText.substring(0, 1000))}</pre>
+</div>`;
+      } else {
+        scriptHtml = renderScriptJSON(json);
+      }
+    } catch (e) {
+      // 无法解析为JSON，显示原始文本
+      scriptHtml = `<div class="generated-script">${escapeHtml(scriptText)}</div>
+<div style="margin-top:12px;padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.75rem;color:#f87171;">
+  ❌ JSON 解析失败。MiniMax 返回内容：<br/>
+  <pre style="white-space:pre-wrap;margin-top:8px;font-size:0.72rem;color:rgba(240,240,255,0.6);">${escapeHtml(scriptText.substring(0, 1000))}</pre>
+</div>`;
     }
 
     output.innerHTML = `<div id="scriptTypingTarget" style="display:none;"></div>`;
