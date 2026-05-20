@@ -99,13 +99,13 @@ async function handleScript(req, env, headers) {
   const userPrompt = `请为${ageGroup}岁儿童创作一个关于"${theme}"的动画剧本。${extraPrompt}
 要求：温馨有趣、积极向上，时长约5分钟，包含3幕结构（开端、发展、结局），每个场景标注镜头语言。`;
 
-  const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/text/chatcompletion_v2`, {
+  const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/chat/completions`, {
     model: 'MiniMax-M2.7-highspeed',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_completion_tokens: 2000,
+    max_tokens: 2000,
     temperature: 0.8,
   }, env);
 
@@ -148,13 +148,13 @@ async function handleStoryboard(req, env, headers) {
   "tips": "制作注意事项"
 }`;
 
-  const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/text/chatcompletion_v2`, {
+  const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/chat/completions`, {
     model: 'MiniMax-M2.7-highspeed',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `请为以下动画场景生成详细分镜规划：${scene}，画风：${style}` },
     ],
-    max_completion_tokens: 1500,
+    max_tokens: 1500,
     temperature: 0.7,
   }, env);
 
@@ -300,13 +300,13 @@ async function handleReview(req, env, headers) {
   "ageGroup": "建议适龄年龄"
 }`;
 
-  const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/text/chatcompletion_v2`, {
+  const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/chat/completions`, {
     model: 'MiniMax-M2.7-highspeed',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `请审核以下剧本内容是否符合儿童动画标准：\n\n${content.substring(0, 4000)}` },
     ],
-    max_completion_tokens: 1000,
+    max_tokens: 1000,
     temperature: 0.3,
   }, env);
 
