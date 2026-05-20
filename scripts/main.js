@@ -306,6 +306,16 @@ function previewImage(input) {
   reader.readAsDataURL(file);
 }
 
+// ── 工具：从文本中去除 <think> 推理标签 ─────────────────────────
+function stripThinkingTags(text) {
+  if (!text) return '';
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')  // 去除推理标签块
+    .replace(/^```(?:json)?\s*/i, '')              // 去除 markdown 代码块
+    .replace(/\s*```$/, '')
+    .trim();
+}
+
 // ── AI 生成剧本 ────────────────────────────────────────────────────
 async function generateScript() {
   const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
@@ -324,50 +334,59 @@ async function generateScript() {
   try {
     const result = await apiCall('/script', { theme, ageGroup });
 
-    // 解析 MiniMax 返回的文本
-    // Worker 现在返回 { raw: MiniMax原始响应 }
-    // MiniMax 响应格式: choices[0].message.content
-    // content 可能是普通文本，也可能是 JSON 字符串（带或不带 markdown 代码块）
-    let scriptText = '';
-    const mm = result.raw || result.data || result;
-    const choices = mm.choices;
-    if (choices && choices.length > 0) {
-      scriptText = choices[0]?.message?.content || '';
-    }
+    // 优先使用 Worker 预解析的剧本对象（v1.0.2+ Worker 返回 script 字段）
+    let scriptData = result.script || null;
+    let scriptText = result.content || '';
+
+    // 兼容旧 Worker：从 raw 中提取并清理
     if (!scriptText) {
-      // 兜底：直接字符串化
-      scriptText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
+      const mm = result.raw || result.data || result;
+      const choices = mm?.choices;
+      if (choices && choices.length > 0) {
+        const raw = choices[0]?.message?.content || '';
+        scriptText = stripThinkingTags(raw);
+      }
     }
 
-    // 去掉可能的 markdown 代码块包裹
-    scriptText = scriptText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-
-    // 尝试解析 JSON
     let scriptHtml = '';
-    try {
-      const json = JSON.parse(scriptText);
-      // 检查 JSON 是否有实质内容
-      const hasContent = (json.acts && json.acts.length > 0) ||
-                         (json.scenes && json.scenes.length > 0) ||
-                         (json.content && json.content.trim()) ||
-                         (json.text && json.text.trim());
-      if (!hasContent) {
-        // JSON 结构存在但内容为空，显示原始文本供调试
-        scriptHtml = `<div class="generated-script">${escapeHtml(scriptText)}</div>
-<div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
-  ⚠️ JSON 结构正常但内容为空。MiniMax 返回内容：<br/>
-  <pre style="white-space:pre-wrap;margin-top:8px;font-size:0.72rem;color:rgba(240,240,255,0.6);">${escapeHtml(scriptText.substring(0, 1000))}</pre>
+
+    // 策略1：Worker 已预解析成功
+    if (scriptData && (scriptData.acts || scriptData.scenes || scriptData.content)) {
+      scriptHtml = renderScriptJSON(scriptData);
+    }
+    // 策略2：content 有文本，尝试本地 JSON 解析
+    else if (scriptText) {
+      try {
+        const json = JSON.parse(scriptText);
+        const hasContent = (json.acts && json.acts.length > 0) ||
+                           (json.scenes && json.scenes.length > 0) ||
+                           (json.content && json.content.trim()) ||
+                           (json.text && json.text.trim());
+        if (hasContent) {
+          scriptHtml = renderScriptJSON(json);
+          scriptData = json;
+        } else {
+          throw new Error('JSON has no content');
+        }
+      } catch (e) {
+        // 策略3：都不是，使用智能解析（内容已清理过 thinking 标签）
+        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(scriptText) && !/&lt;/i.test(scriptText);
+        if (hasHtmlTags) {
+          const safe = scriptText
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/on\w+="[^"]*"/gi, '')
+            .replace(/javascript:/gi, '');
+          scriptHtml = `<div class="generated-script">${safe}</div>`;
+        } else {
+          scriptHtml = `<div class="generated-script">${parsePlainTextScript(scriptText)}</div>`;
+        }
+        scriptHtml += `
+<div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
+  💡 提示：已自动过滤推理标签，显示智能解析结果。
 </div>`;
-      } else {
-        scriptHtml = renderScriptJSON(json);
       }
-    } catch (e) {
-      // 无法解析为JSON，显示原始文本
-      scriptHtml = `<div class="generated-script">${escapeHtml(scriptText)}</div>
-<div style="margin-top:12px;padding:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.75rem;color:#f87171;">
-  ❌ JSON 解析失败。MiniMax 返回内容：<br/>
-  <pre style="white-space:pre-wrap;margin-top:8px;font-size:0.72rem;color:rgba(240,240,255,0.6);">${escapeHtml(scriptText.substring(0, 1000))}</pre>
-</div>`;
+    } else {
+      throw new Error('无任何剧本内容返回');
     }
 
     output.innerHTML = `<div id="scriptTypingTarget" style="display:none;"></div>`;
@@ -436,6 +455,7 @@ function renderScriptJSON(json) {
   return html;
 }
 
+// HTML 转义（用于用户输入等不可信来源）
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -443,6 +463,102 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// HTML 反转义（用于显示 AI 返回的原始 HTML 内容）
+function unescapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"');
+}
+
+// 智能解析纯文本剧本格式
+function parsePlainTextScript(text) {
+  if (!text) return '';
+  
+  let html = '';
+  const lines = text.split('\n');
+  let currentBlock = '';
+  let inDialogue = false;
+  
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) {
+      if (currentBlock) {
+        html += `<p>${escapeHtml(currentBlock)}</p>`;
+        currentBlock = '';
+      }
+      continue;
+    }
+    
+    // 检测场景标记（如 "场景一"、"Scene 1"、"第一幕" 等）
+    if (/^(场景|第[一二三四五六七八九十]+幕|Scene|ACT|幕)[\s：:]/i.test(line) || 
+        /^[【\[【]?(场景|第?[一二三四五六七八九十]+)[】\]]/.test(line)) {
+      if (currentBlock) {
+        html += `<p>${escapeHtml(currentBlock)}</p>`;
+        currentBlock = '';
+      }
+      html += `<div class="scene-header" style="background:rgba(124,58,237,0.1);padding:8px 12px;border-radius:8px;margin:12px 0 8px;font-weight:bold;color:#a78bfa;">${escapeHtml(line)}</div>`;
+      continue;
+    }
+    
+    // 检测旁白标记
+    if (/^(旁白| narration|叙述|Narrator)[:：]/i.test(line)) {
+      if (currentBlock) {
+        html += `<p>${escapeHtml(currentBlock)}</p>`;
+        currentBlock = '';
+      }
+      const content = line.replace(/^(旁白| narration|叙述|Narrator)[:：]\s*/i, '');
+      html += `<p style="font-style:italic;color:#6c5ce7;padding-left:12px;border-left:3px solid #6c5ce7;margin:8px 0;">${escapeHtml(content)}</p>`;
+      continue;
+    }
+    
+    // 检测镜头说明
+    if (/^(镜头|Camera|CAM|拍摄)[:：]/i.test(line)) {
+      if (currentBlock) {
+        html += `<p>${escapeHtml(currentBlock)}</p>`;
+        currentBlock = '';
+      }
+      const content = line.replace(/^(镜头|Camera|CAM|拍摄)[:：]\s*/i, '');
+      html += `<p style="color:#f59e0b;font-size:0.85rem;margin:8px 0;">📷 ${escapeHtml(content)}</p>`;
+      continue;
+    }
+    
+    // 检测角色对话（格式：角色名：对话 或 角色名（动作）：对话）
+    const dialogueMatch = line.match(/^([\u4e00-\u9fa5a-zA-Z\uac00-\ud7af]+)[\s　]*[（(][^）)]+[）)][：:]\s*"?(.+?)"?$/);
+    if (dialogueMatch) {
+      if (currentBlock) {
+        html += `<p>${escapeHtml(currentBlock)}</p>`;
+        currentBlock = '';
+      }
+      html += `<p style="margin:6px 0;padding-left:12px;"><strong style="color:#a78bfa;">${escapeHtml(dialogueMatch[1])}</strong>：${escapeHtml(dialogueMatch[2])}</p>`;
+      continue;
+    }
+    
+    // 检测无动作标记的对话
+    const simpleDialogueMatch = line.match(/^([\u4e00-\u9fa5a-zA-Z\uac00-\ud7af]{2,8})[：:]\s*"?(.+?)"?$/);
+    if (simpleDialogueMatch && !/^(旁白|镜头|Camera|场景|第|幕|结果|总结|说明)/i.test(simpleDialogueMatch[1])) {
+      if (currentBlock) {
+        html += `<p>${escapeHtml(currentBlock)}</p>`;
+        currentBlock = '';
+      }
+      html += `<p style="margin:6px 0;padding-left:12px;"><strong style="color:#a78bfa;">${escapeHtml(simpleDialogueMatch[1])}</strong>：${escapeHtml(simpleDialogueMatch[2])}</p>`;
+      continue;
+    }
+    
+    // 普通段落文本
+    currentBlock += (currentBlock ? ' ' : '') + line;
+  }
+  
+  // 处理最后一块
+  if (currentBlock) {
+    html += `<p>${escapeHtml(currentBlock)}</p>`;
+  }
+  
+  return html;
 }
 
 // ── AI 生成分镜 ────────────────────────────────────────────────────

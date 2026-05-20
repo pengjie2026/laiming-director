@@ -10,7 +10,7 @@
  * 4. wrangler deploy
  */
 
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 
 // MiniMax API Base URL
 const MINIMAX_BASE = 'https://api.minimaxi.com';
@@ -53,6 +53,16 @@ async function minimaxRequest(endpoint, body, env) {
   return resp;
 }
 
+// ── 从 content 中提取 JSON（去掉 <think> 推理标签）───────────────
+function extractJSON(content) {
+  if (!content) return '';
+  // 去掉 <think>...</think> 推理块
+  let cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // 去掉可能的 markdown 代码块
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  return cleaned;
+}
+
 // ── 剧本生成 ─────────────────────────────────────────────────────
 // POST /script
 // Body: { theme, ageGroup, extraPrompt? }
@@ -65,11 +75,12 @@ async function handleScript(req, env, headers) {
 
   const systemPrompt = `你是「籁鸣导演」平台的AI编剧专家，专为${ageGroup}岁儿童创作动画剧本。
 
-【重要约束】
+【重要约束 - 必须遵守】
 1. 只输出纯JSON格式，不要包含任何其他文字
-2. 不要使用markdown代码块包裹
-3. 确保所有字符串值中的特殊字符已正确转义
-4. JSON必须完整可解析，不能截断
+2. 禁止使用markdown代码块（不要写 ```json ... ```）
+3. 禁止输出 <think> 或 </think> 标签
+4. 确保所有字符串值中的特殊字符已正确转义
+5. JSON必须完整可解析，不能截断
 
 请严格按以下JSON格式输出剧本：
 
@@ -123,8 +134,29 @@ async function handleScript(req, env, headers) {
 
   const data = await resp.json();
   console.log('[Worker] MiniMax /script raw response:', JSON.stringify(data).substring(0, 800));
-  // 如果 MiniMax 返回 choices，直接返回整个 data（不额外包装），方便前端直接访问
-  return json({ raw: data, model: 'MiniMax-M2.7-highspeed' }, 200, headers);
+
+  // 从 choices[0].message.content 提取并清理 JSON
+  let cleanedContent = '';
+  const choices = data?.choices;
+  if (choices && choices.length > 0) {
+    const rawContent = choices[0]?.message?.content || '';
+    cleanedContent = extractJSON(rawContent);
+  }
+
+  // 尝试预解析 JSON，如果成功则直接返回结构化数据
+  let scriptData = null;
+  try {
+    scriptData = JSON.parse(cleanedContent);
+  } catch (e) {
+    console.log('[Worker] Pre-parse failed, will handle on frontend:', e.message);
+  }
+
+  return json({
+    raw: data,
+    content: cleanedContent,     // 已清理的纯文本内容
+    script: scriptData,         // 预解析的剧本对象（可能为 null）
+    model: 'MiniMax-M2.7-highspeed'
+  }, 200, headers);
 }
 
 // ── 分镜规划 ─────────────────────────────────────────────────────
