@@ -310,10 +310,41 @@ function previewImage(input) {
 function stripThinkingTags(text) {
   if (!text) return '';
   return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')  // 去除推理标签块
-    .replace(/^```(?:json)?\s*/i, '')              // 去除 markdown 代码块
-    .replace(/\s*```$/, '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')   // 去除推理标签块
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .replace(/^```(?:json)?\s*/i, '')               // 去除 markdown 代码块开头
+    .replace(/\s*```$/, '')                         // 去除 markdown 代码块结尾
     .trim();
+}
+
+// ── 工具：健壮地从文本中提取 JSON ───────────────────────────────
+function robustJSONExtract(text) {
+  if (!text) return null;
+
+  // 1. 尝试直接解析
+  try {
+    return JSON.parse(text);
+  } catch (_) {}
+
+  // 2. 尝试提取第一个 { ... } 块（贪婪匹配到最外层闭合）
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (_) {}
+
+    // 3. 处理常见格式问题：去除末尾逗号、修复未转义换行
+    const fixed = jsonMatch[0]
+      .replace(/,\s*([}\]])/g, '$1')                    // 去除尾随逗号
+      .replace(/\n/g, '\\n')                            // 未转义换行
+      .replace(/\r/g, '')
+      .replace(/\t/g, '\\t');
+    try {
+      return JSON.parse(fixed);
+    } catch (_) {}
+  }
+
+  return null;
 }
 
 // ── AI 生成剧本 ────────────────────────────────────────────────────
@@ -354,36 +385,43 @@ async function generateScript() {
     if (scriptData && (scriptData.acts || scriptData.scenes || scriptData.content)) {
       scriptHtml = renderScriptJSON(scriptData);
     }
-    // 策略2：content 有文本，尝试本地 JSON 解析
+    // 策略2：content 有文本，尝试健壮 JSON 解析
     else if (scriptText) {
-      try {
-        const json = JSON.parse(scriptText);
-        const hasContent = (json.acts && json.acts.length > 0) ||
-                           (json.scenes && json.scenes.length > 0) ||
-                           (json.content && json.content.trim()) ||
-                           (json.text && json.text.trim());
-        if (hasContent) {
-          scriptHtml = renderScriptJSON(json);
-          scriptData = json;
+      const json = robustJSONExtract(scriptText);
+      const hasContent = json && (
+        (json.acts && json.acts.length > 0) ||
+        (json.scenes && json.scenes.length > 0) ||
+        (json.content && json.content.trim()) ||
+        (json.text && json.text.trim())
+      );
+      if (hasContent) {
+        scriptHtml = renderScriptJSON(json);
+        scriptData = json;
+      } else {
+        // 策略3：看起来是 JSON 但解析失败，直接显示原始文本+提示
+        const looksLikeJSON = scriptText.trim().startsWith('{') && scriptText.includes('"title"');
+        if (looksLikeJSON) {
+          scriptHtml = `<div class="generated-script"><pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:0.82rem;line-height:1.6;color:rgba(240,240,255,0.85);background:rgba(0,0,0,0.15);padding:16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">${escapeHtml(scriptText)}</pre></div>
+<div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
+  ⚠️ 模型返回了 JSON 但解析失败（可能是格式微瑕或截断），已显示原始文本。
+</div>`;
         } else {
-          throw new Error('JSON has no content');
-        }
-      } catch (e) {
-        // 策略3：都不是，使用智能解析（内容已清理过 thinking 标签）
-        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(scriptText) && !/&lt;/i.test(scriptText);
-        if (hasHtmlTags) {
-          const safe = scriptText
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-            .replace(/on\w+="[^"]*"/gi, '')
-            .replace(/javascript:/gi, '');
-          scriptHtml = `<div class="generated-script">${safe}</div>`;
-        } else {
-          scriptHtml = `<div class="generated-script">${parsePlainTextScript(scriptText)}</div>`;
-        }
-        scriptHtml += `
+          // 策略4：普通文本智能解析
+          const hasHtmlTags = /<[a-z][\s\S]*>/i.test(scriptText) && !/&lt;/i.test(scriptText);
+          if (hasHtmlTags) {
+            const safe = scriptText
+              .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+              .replace(/on\w+="[^"]*"/gi, '')
+              .replace(/javascript:/gi, '');
+            scriptHtml = `<div class="generated-script">${safe}</div>`;
+          } else {
+            scriptHtml = `<div class="generated-script">${parsePlainTextScript(scriptText)}</div>`;
+          }
+          scriptHtml += `
 <div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
   💡 提示：已自动过滤推理标签，显示智能解析结果。
 </div>`;
+        }
       }
     } else {
       throw new Error('无任何剧本内容返回');
