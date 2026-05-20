@@ -10,7 +10,7 @@
  * 4. wrangler deploy
  */
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 
 // MiniMax API Base URL
 const MINIMAX_BASE = 'https://api.minimaxi.com';
@@ -65,7 +65,13 @@ async function handleScript(req, env, headers) {
 
   const systemPrompt = `你是「籁鸣导演」平台的AI编剧专家，专为${ageGroup}岁儿童创作动画剧本。
 
-请严格按以下格式输出剧本（JSON格式）：
+【重要约束】
+1. 只输出纯JSON格式，不要包含任何其他文字
+2. 不要使用markdown代码块包裹
+3. 确保所有字符串值中的特殊字符已正确转义
+4. JSON必须完整可解析，不能截断
+
+请严格按以下JSON格式输出剧本：
 
 {
   "title": "剧本标题",
@@ -97,7 +103,13 @@ async function handleScript(req, env, headers) {
 }`;
 
   const userPrompt = `请为${ageGroup}岁儿童创作一个关于"${theme}"的动画剧本。${extraPrompt}
-要求：温馨有趣、积极向上，时长约5分钟，包含3幕结构（开端、发展、结局），每个场景标注镜头语言。`;
+
+要求：
+1. 温馨有趣、积极向上
+2. 时长约5分钟
+3. 包含3幕结构（开端、发展、结局）
+4. 每个场景标注镜头语言
+5. 【必须】只输出上述JSON格式，不要任何其他文字说明`;
 
   const resp = await minimaxRequest(`${MINIMAX_BASE}/v1/chat/completions`, {
     model: 'MiniMax-M2.7-highspeed',
