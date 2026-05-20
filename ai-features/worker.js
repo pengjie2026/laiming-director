@@ -77,7 +77,7 @@ async function handleScript(req, env, headers) {
 
 【重要约束 - 必须遵守】
 1. 只输出纯JSON格式，不要包含任何其他文字
-2. 禁止使用markdown代码块（不要写 ```json ... ```）
+2. 禁止使用markdown代码块（不要写 \`\`\`json ... \`\`\`）
 3. 禁止输出 <think> 或 </think> 标签
 4. 确保所有字符串值中的特殊字符已正确转义
 5. JSON必须完整可解析，不能截断
