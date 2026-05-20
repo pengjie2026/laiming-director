@@ -105,7 +105,7 @@ async function handleScript(req, env, headers) {
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: 8000,
+    max_tokens: 16000,
     temperature: 0.8,
   }, env);
 
