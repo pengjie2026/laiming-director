@@ -321,45 +321,339 @@ function previewImage(input) {
   reader.readAsDataURL(file);
 }
 
-// -- 工具：从文本中去除 <think> 推理标签 -------------------------
+// -- 工具：从文本中去除 thinking 推理标签 ------------------------
 function stripThinkingTags(text) {
   if (!text) return '';
   return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')   // 去除推理标签块
-    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
-    .replace(/^```(?:json)?\s*/i, '')               // 去除 markdown 代码块开头
-    .replace(/\s*```$/, '')                         // 去除 markdown 代码块结尾
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')       // 去除 think block
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '') // 去除 reasoning block
+    .replace(/^```(?:json)?\s*/i, '')                 // 去除 markdown 代码块开头
+    .replace(/\s*```$/, '')                           // 去除 markdown 代码块结尾
     .trim();
 }
 
-// -- 工具：健壮地从文本中提取 JSON -------------------------------
-function robustJSONExtract(text) {
+// -- 工具：智能修复 LLM 输出的微瑕 JSON（5层渐进式）---------------
+function extractScriptJSON(text) {
   if (!text) return null;
 
-  // 1. 尝试直接解析
+  // Layer 1: 直接解析原始文本
   try {
-    return JSON.parse(text);
+    const direct = JSON.parse(text);
+    if (direct && (direct.acts || direct.scenes || direct.title || direct.content)) {
+      return direct;
+    }
   } catch (_) {}
 
-  // 2. 尝试提取第一个 { ... } 块（贪婪匹配到最外层闭合）
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      return JSON.parse(jsonMatch[0]);
-    } catch (_) {}
+  // Layer 2: 清洁后解析（去除杂项）
+  let cleaned = text
+    .replace(/^\uFEFF/, '')                                 // 去除 BOM
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')          // 去除控制字符
+    .replace(/^[^\{]*/, '')                                 // 去除开头非 { 字符
+    .replace(/[^\}]*$/, '');                                // 去除末尾非 } 字符
+  try { return JSON.parse(cleaned); } catch (_) {}
 
-    // 3. 处理常见格式问题：去除末尾逗号、修复未转义换行
-    const fixed = jsonMatch[0]
-      .replace(/,\s*([}\]])/g, '$1')                    // 去除尾随逗号
-      .replace(/\n/g, '\\n')                            // 未转义换行
-      .replace(/\r/g, '')
-      .replace(/\t/g, '\\t');
-    try {
-      return JSON.parse(fixed);
-    } catch (_) {}
+  // Layer 3: 智能修复（追踪字符串状态）
+  const fixed = fixBrokenJSON(cleaned || text);
+  try { return JSON.parse(fixed); } catch (_) {}
+
+  // Layer 4: 截断补全（如果缺少闭合括号）
+  const completed = completeTruncatedJSON(fixed || cleaned || text);
+  try { return JSON.parse(completed); } catch (_) {}
+
+  // Layer 5: Schema 感知提取（从文本中直接构建剧本对象）
+  const extracted = schemaAwareExtract(text);
+  if (extracted && (extracted.acts || extracted.title || extracted.content)) {
+    return extracted;
   }
 
   return null;
+}
+
+// --- 智能修复微瑕 JSON（追踪字符串状态，不盲目全局替换）---------
+function fixBrokenJSON(text) {
+  if (!text) return '';
+
+  let result = '';
+  let inString = false;
+  let escapeNext = false;
+  let depthStack = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (escapeNext) {
+      result += ch;
+      escapeNext = false;
+      continue;
+    }
+
+    if (ch === '\\') {
+      result += ch;
+      escapeNext = true;
+      continue;
+    }
+
+    if (ch === '"' && !inString) {
+      inString = true;
+      result += ch;
+      continue;
+    }
+
+    if (ch === '"' && inString) {
+      inString = false;
+      result += ch;
+      continue;
+    }
+
+    if (inString) {
+      // 在字符串内部：转义未转义的换行和制表符
+      if (ch === '\n') {
+        result += '\\n';
+      } else if (ch === '\r') {
+        result += '';
+      } else if (ch === '\t') {
+        result += '\\t';
+      } else {
+        result += ch;
+      }
+      continue;
+    }
+
+    // 不在字符串中
+    if (ch === '{' || ch === '[') {
+      depthStack.push(ch);
+      result += ch;
+    } else if (ch === '}') {
+      // 去除对象末尾逗号
+      result = trimTrailingComma(result);
+      if (depthStack.length > 0 && depthStack[depthStack.length - 1] === '{') {
+        depthStack.pop();
+      }
+      result += ch;
+    } else if (ch === ']') {
+      // 去除数组末尾逗号
+      result = trimTrailingComma(result);
+      if (depthStack.length > 0 && depthStack[depthStack.length - 1] === '[') {
+        depthStack.pop();
+      }
+      result += ch;
+    } else {
+      result += ch;
+    }
+  }
+
+  return result;
+}
+
+function trimTrailingComma(str) {
+  // 去除末尾空白和逗号
+  let i = str.length - 1;
+  while (i >= 0 && /\s/.test(str[i])) i--;
+  if (i >= 0 && str[i] === ',') {
+    return str.substring(0, i);
+  }
+  return str;
+}
+
+// --- 截断补全：检测并补全缺失的闭合括号 -------------------------
+function completeTruncatedJSON(text) {
+  if (!text) return '';
+
+  let openBrace = 0, openBracket = 0;
+  let inStr = false, esc = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\') { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === '{') openBrace++;
+    else if (ch === '}') openBrace--;
+    else if (ch === '[') openBracket++;
+    else if (ch === ']') openBracket--;
+  }
+
+  let suffix = '';
+  while (openBracket > 0) { suffix += ']'; openBracket--; }
+  while (openBrace > 0) { suffix += '}'; openBrace--; }
+
+  return text + suffix;
+}
+
+// --- Schema 感知提取：直接从文本中提取剧本字段构建对象 --------
+function schemaAwareExtract(text) {
+  if (!text) return null;
+
+  const result = {
+    title: '',
+    ageGroup: '',
+    duration: '',
+    theme: '',
+    characters: [],
+    acts: [],
+    eduValues: [],
+    tips: ''
+  };
+
+  const titleMatch = text.match(/"title"\s*:\s*"([^"]*)"/);
+  if (titleMatch) result.title = titleMatch[1];
+
+  const ageMatch = text.match(/"ageGroup"\s*:\s*"([^"]*)"/);
+  if (ageMatch) result.ageGroup = ageMatch[1];
+
+  const durMatch = text.match(/"duration"\s*:\s*"([^"]*)"/);
+  if (durMatch) result.duration = durMatch[1];
+
+  const themeMatch = text.match(/"theme"\s*:\s*"([^"]*)"/);
+  if (themeMatch) result.theme = themeMatch[1];
+
+  const charBlock = extractArrayBlock(text, '"characters"');
+  if (charBlock) {
+    result.characters = extractCharacterItems(charBlock);
+  }
+
+  const actsBlock = extractArrayBlock(text, '"acts"');
+  if (actsBlock) {
+    result.acts = extractActItems(actsBlock);
+  }
+
+  const eduBlock = extractArrayBlock(text, '"eduValues"');
+  if (eduBlock) {
+    result.eduValues = extractStringItems(eduBlock);
+  }
+
+  const tipsMatch = text.match(/"tips"\s*:\s*"([^"]*)"/);
+  if (tipsMatch) result.tips = tipsMatch[1];
+
+  return result;
+}
+
+// 从文本中提取数组块（从 key 开始到匹配的 ] 结束）
+function extractArrayBlock(text, key) {
+  const idx = text.indexOf(key);
+  if (idx === -1) return null;
+
+  const start = text.indexOf('[', idx);
+  if (start === -1) return null;
+
+  let depth = 1;
+  let inStr = false, esc = false;
+  let i = start + 1;
+
+  while (i < text.length && depth > 0) {
+    const ch = text[i];
+    if (esc) { esc = false; i++; continue; }
+    if (ch === '\\') { esc = true; i++; continue; }
+    if (ch === '"') { inStr = !inStr; i++; continue; }
+    if (inStr) { i++; continue; }
+    if (ch === '[') depth++;
+    else if (ch === ']') depth--;
+    i++;
+  }
+
+  return text.substring(start, i);
+}
+
+// 提取 characters 数组中的对象
+function extractCharacterItems(block) {
+  const chars = [];
+  const objRegex = /\{[^{}]*\}/g;
+  let m;
+  while ((m = objRegex.exec(block)) !== null) {
+    const obj = m[0];
+    const name = (obj.match(/"name"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const role = (obj.match(/"role"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const desc = (obj.match(/"description"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    if (name) chars.push({ name, role, description: desc });
+  }
+  return chars;
+}
+
+// 提取 acts 数组中的对象（支持嵌套 scenes）
+function extractActItems(block) {
+  const acts = [];
+  let i = 0;
+  while (i < block.length) {
+    const actIdx = block.indexOf('"act"', i);
+    if (actIdx === -1) break;
+
+    const actName = (block.substring(actIdx).match(/"act"\s*:\s*"([^"]*)"/) || [])[1] || '';
+
+    const scenesBlock = extractArrayBlock(block.substring(actIdx), '"scenes"');
+    const scenes = scenesBlock ? extractSceneItems(scenesBlock) : [];
+
+    acts.push({ act: actName, scenes });
+    i = actIdx + 1;
+  }
+
+  if (acts.length === 0) {
+    const scenesBlock = extractArrayBlock(block, '"scenes"');
+    if (scenesBlock) {
+      const scenes = extractSceneItems(scenesBlock);
+      if (scenes.length > 0) {
+        acts.push({ act: '剧情', scenes });
+      }
+    }
+  }
+
+  return acts;
+}
+
+// 提取 scene 对象
+function extractSceneItems(block) {
+  const scenes = [];
+  const objRegex = /\{[^{}]*\}/g;
+  let m;
+  while ((m = objRegex.exec(block)) !== null) {
+    const obj = m[0];
+    const sceneNum = (obj.match(/"sceneNum"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const location = (obj.match(/"location"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const time = (obj.match(/"time"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const narration = (obj.match(/"narration"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const cameraNote = (obj.match(/"cameraNote"\s*:\s*"([^"]*)"/) || [])[1] || '';
+
+    const dialoguesBlock = extractArrayBlock(obj, '"dialogues"');
+    const dialogues = dialoguesBlock ? extractDialogueItems(dialoguesBlock) : [];
+
+    if (location || narration || dialogues.length > 0) {
+      scenes.push({ sceneNum, location, time, narration, cameraNote, dialogues });
+    }
+  }
+  return scenes;
+}
+
+// 提取 dialogue 对象
+function extractDialogueItems(block) {
+  const dialogues = [];
+  const objRegex = /\{[^{}]*\}/g;
+  let m;
+  while ((m = objRegex.exec(block)) !== null) {
+    const obj = m[0];
+    const character = (obj.match(/"character"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    const type = (obj.match(/"type"\s*:\s*"([^"]*)"/) || [])[1] || '台词';
+    const content = (obj.match(/"content"\s*:\s*"([^"]*)"/) || [])[1] || '';
+    if (character || content) {
+      dialogues.push({ character, type, content });
+    }
+  }
+  return dialogues;
+}
+
+// 提取字符串数组中的项
+function extractStringItems(block) {
+  const items = [];
+  const regex = /"([^"]*)"/g;
+  let m;
+  while ((m = regex.exec(block)) !== null) {
+    if (m[1]) items.push(m[1]);
+  }
+  return items;
+}
+
+// 向后兼容：旧的 robustJSONExtract 别名
+function robustJSONExtract(text) {
+  return extractScriptJSON(text);
 }
 
 // -- AI 生成剧本 ----------------------------------------------------
@@ -422,42 +716,29 @@ async function generateScript() {
     if (scriptData && (scriptData.acts || scriptData.scenes || scriptData.content)) {
       scriptHtml = renderScriptJSON(scriptData);
     }
-    // 策略2：content 有文本，尝试健壮 JSON 解析
+    // 策略2：content 有文本，使用 5 层渐进式 JSON 解析
     else if (scriptText) {
-      const json = robustJSONExtract(scriptText);
+      const json = extractScriptJSON(scriptText);
       const hasContent = json && (
         (json.acts && json.acts.length > 0) ||
         (json.scenes && json.scenes.length > 0) ||
         (json.content && json.content.trim()) ||
-        (json.text && json.text.trim())
+        (json.title)
       );
       if (hasContent) {
         scriptHtml = renderScriptJSON(json);
         scriptData = json;
       } else {
-        // 策略3：看起来是 JSON 但解析失败，直接显示原始文本+提示
-        const looksLikeJSON = scriptText.trim().startsWith('{') && scriptText.includes('"title"');
-        if (looksLikeJSON) {
-          scriptHtml = `<div class="generated-script"><pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:0.82rem;line-height:1.6;color:rgba(240,240,255,0.85);background:rgba(0,0,0,0.15);padding:16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">${escapeHtml(scriptText)}</pre></div>
-<div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
-  ⚠️ 模型返回了 JSON 但解析失败（可能是格式微瑕或截断），已显示原始文本。
-</div>`;
+        // 最终兜底：普通文本智能解析
+        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(scriptText) && !/&lt;/i.test(scriptText);
+        if (hasHtmlTags) {
+          const safe = scriptText
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/on\w+="[^"]*"/gi, '')
+            .replace(/javascript:/gi, '');
+          scriptHtml = `<div class="generated-script">${safe}</div>`;
         } else {
-          // 策略4：普通文本智能解析
-          const hasHtmlTags = /<[a-z][\s\S]*>/i.test(scriptText) && !/&lt;/i.test(scriptText);
-          if (hasHtmlTags) {
-            const safe = scriptText
-              .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-              .replace(/on\w+="[^"]*"/gi, '')
-              .replace(/javascript:/gi, '');
-            scriptHtml = `<div class="generated-script">${safe}</div>`;
-          } else {
-            scriptHtml = `<div class="generated-script">${parsePlainTextScript(scriptText)}</div>`;
-          }
-          scriptHtml += `
-<div style="margin-top:12px;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:0.75rem;color:#f59e0b;">
-  💡 提示：已自动过滤推理标签，显示智能解析结果。
-</div>`;
+          scriptHtml = `<div class="generated-script">${parsePlainTextScript(scriptText)}</div>`;
         }
       }
     } else {

@@ -53,14 +53,62 @@ async function minimaxRequest(endpoint, body, env) {
   return resp;
 }
 
-// ── 从 content 中提取 JSON（去掉 <think> 推理标签）───────────────
+// ── 从 content 中提取 JSON（去掉 thinking 标签）─────────────
 function extractJSON(content) {
   if (!content) return '';
-  // 去掉 <think>...</think> 推理块
-  let cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  // 去掉可能的 markdown 代码块
+  let cleaned = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .trim();
   cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   return cleaned;
+}
+
+// ── 修复微瑕 JSON（Worker 端）────────────────────────────────
+function repairJSON(text) {
+  if (!text) return '';
+  let result = '';
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escapeNext) { result += ch; escapeNext = false; continue; }
+    if (ch === '\\') { result += ch; escapeNext = true; continue; }
+    if (ch === '"' && !inString) { inString = true; result += ch; continue; }
+    if (ch === '"' && inString) { inString = false; result += ch; continue; }
+    if (inString) {
+      if (ch === '\n') { result += '\\n'; continue; }
+      if (ch === '\r') { continue; }
+      if (ch === '\t') { result += '\\t'; continue; }
+    }
+    result += ch;
+  }
+
+  // 去除尾随逗号
+  result = result.replace(/,\s*([}\]])/g, '$1');
+  return result;
+}
+
+function completeJSON(text) {
+  if (!text) return '';
+  let openBrace = 0, openBracket = 0;
+  let inStr = false, esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\') { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === '{') openBrace++;
+    else if (ch === '}') openBrace--;
+    else if (ch === '[') openBracket++;
+    else if (ch === ']') openBracket--;
+  }
+  let suffix = '';
+  while (openBracket > 0) { suffix += ']'; openBracket--; }
+  while (openBrace > 0) { suffix += '}'; openBrace--; }
+  return text + suffix;
 }
 
 // ── 剧本生成 ─────────────────────────────────────────────────────
@@ -143,18 +191,29 @@ async function handleScript(req, env, headers) {
     cleanedContent = extractJSON(rawContent);
   }
 
-  // 尝试预解析 JSON，如果成功则直接返回结构化数据
+  // 尝试预解析 JSON（多层修复策略）
   let scriptData = null;
-  try {
-    scriptData = JSON.parse(cleanedContent);
-  } catch (e) {
-    console.log('[Worker] Pre-parse failed, will handle on frontend:', e.message);
+  const parseAttempts = [
+    () => JSON.parse(cleanedContent),
+    () => JSON.parse(repairJSON(cleanedContent)),
+    () => JSON.parse(completeJSON(repairJSON(cleanedContent))),
+  ];
+  for (let i = 0; i < parseAttempts.length; i++) {
+    try {
+      scriptData = parseAttempts[i]();
+      if (scriptData) {
+        console.log(`[Worker] JSON parsed successfully at level ${i + 1}`);
+        break;
+      }
+    } catch (e) {
+      console.log(`[Worker] Parse level ${i + 1} failed:`, e.message);
+    }
   }
 
   return json({
     raw: data,
-    content: cleanedContent,     // 已清理的纯文本内容
-    script: scriptData,         // 预解析的剧本对象（可能为 null）
+    content: cleanedContent,
+    script: scriptData,
     model: 'MiniMax-M2.7-highspeed'
   }, 200, headers);
 }
