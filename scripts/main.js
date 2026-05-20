@@ -85,7 +85,9 @@ const state = {
   currentCSTab: 'script',
   selectedStyle: 'cartoon',
   scriptContent: '',
-  billing: 'monthly'
+  billing: 'monthly',
+  lastReviewData: null,   // 最新审核结果（用于导出报告）
+  lastScriptData: null,   // 最新剧本数据（用于下载）
 };
 
 // ── 加载动画 ─────────────────────────────────────────────────────
@@ -101,7 +103,20 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollAnimations();
   initAgeFilter();
   initStyleChips();
+  initCustomDuration();
 });
+
+// ── 自定义时长切换 ───────────────────────────────────────────────
+function initCustomDuration() {
+  const epDuration = document.getElementById('epDuration');
+  const customDuration = document.getElementById('customDuration');
+  if (!epDuration) return;
+  epDuration.addEventListener('change', () => {
+    if (customDuration) {
+      customDuration.style.display = epDuration.value === 'custom' ? '' : 'none';
+    }
+  });
+}
 
 // ── 导航栏滚动效果 ───────────────────────────────────────────────
 function initNavbar() {
@@ -351,19 +366,41 @@ function robustJSONExtract(text) {
 async function generateScript() {
   const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
   const ageGroup = document.querySelector('input[name="ageGroup"]:checked')?.value || '3-6';
+  const storyDesc = document.getElementById('storyDesc')?.value?.trim() || '';
+  const epDuration = document.getElementById('epDuration')?.value || '5';
+  const customDuration = document.getElementById('customDuration')?.value || '';
+  const episodeCount = parseInt(document.getElementById('episodeCount')?.value) || 1;
+  const customEdu = document.getElementById('customEduTheme')?.value?.trim() || '';
+
+  // 收集选中的教育主题
+  const eduCheckboxes = document.querySelectorAll('#cs-script .cs-checkbox-group input[type="checkbox"]:checked');
+  const selectedEdu = Array.from(eduCheckboxes).map(cb => cb.parentElement.textContent.trim()).filter(Boolean);
+
   const output = document.getElementById('scriptOutput');
   const btn = document.querySelector('#cs-script .cs-generate-btn');
   setBtnState(btn, '⏳', 'MiniMax 创作中...', true);
 
+  // 隐藏下载按钮直到有内容
+  const downloadBtn = document.getElementById('downloadScriptBtn');
+  if (downloadBtn) downloadBtn.style.display = 'none';
+
   output.innerHTML = `
     <div class="loading-spinner">
       <div class="spinner"></div>
-      <div class="loading-text">MiniMax 正在生成剧本，请稍候...</div>
+      <div class="loading-text">MiniMax 正在生成${episodeCount > 1 ? episodeCount + '集' : ''}剧本，请稍候...</div>
       <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div>
     </div>`;
 
+  // 收集 extraPrompt
+  const extraParts = [];
+  if (storyDesc) extraParts.push(`故事补充要求：${storyDesc}`);
+  if (epDuration === 'custom' && customDuration) extraParts.push(`时长：约${customDuration}分钟`);
+  if (selectedEdu.length > 0) extraParts.push(`教育主题：${selectedEdu.join('、')}`);
+  if (customEdu) extraParts.push(`自定义教育主题：${customEdu}`);
+  const extraPrompt = extraParts.join('；');
+
   try {
-    const result = await apiCall('/script', { theme, ageGroup });
+    const result = await apiCall('/script', { theme, ageGroup, extraPrompt });
 
     // 优先使用 Worker 预解析的剧本对象（v1.0.2+ Worker 返回 script 字段）
     let scriptData = result.script || null;
@@ -433,6 +470,8 @@ async function generateScript() {
     target.style.display = '';
 
     state.scriptContent = scriptText;
+    state.lastScriptData = scriptData;
+    if (downloadBtn) downloadBtn.style.display = '';
     setBtnState(btn, '✨', '重新生成剧本', false);
   } catch (err) {
     // 检查是否是 MiniMax 余额不足
@@ -611,17 +650,17 @@ async function generateStoryboard() {
     const result = await apiCall('/storyboard', { scene, style });
     let rawText = '';
     const mm = result.raw || result.data || result;
-    const choices = mm.choices;
+    const choices = mm?.choices;
     if (choices && choices.length > 0) {
-      rawText = choices[0]?.message?.content || '';
+      const raw = choices[0]?.message?.content || '';
+      rawText = stripThinkingTags(raw);
     }
     if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
-    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
     // 尝试解析 JSON
     let cardsHtml = '';
-    try {
-      const json = JSON.parse(rawText);
+    const json = robustJSONExtract(rawText);
+    if (json && json.shots) {
       const shots = json.shots || [];
       cardsHtml = shots.map(s => `
         <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
@@ -641,7 +680,7 @@ async function generateStoryboard() {
         📊 共 ${shots.length} 个镜头 · 预估时长约 <strong style="color:#a78bfa;">${escapeHtml(json.estimatedDuration || '')}</strong>
         ${json.summary ? `<br/>💡 ${escapeHtml(json.summary)}` : ''}
         </div>`;
-    } catch {
+    } else {
       output.innerHTML = `<div style="padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.85rem;white-space:pre-wrap;">${escapeHtml(rawText)}</div>`;
     }
   } catch (err) {
@@ -801,26 +840,32 @@ async function runContentReview() {
     const result = await apiCall('/review', { content });
     let rawText = '';
     const mm = result.raw || result.data || result;
-    const choices = mm.choices;
+    const choices = mm?.choices;
     if (choices && choices.length > 0) {
-      rawText = choices[0]?.message?.content || '';
+      const raw = choices[0]?.message?.content || '';
+      rawText = stripThinkingTags(raw);
     }
     if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
-    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
-    let score = 0, grade = '', checks = [], canProceed = false;
+    let score = 0, grade = '', checks = [], canProceed = false, summary = '';
 
-    try {
-      const json = JSON.parse(rawText);
+    const json = robustJSONExtract(rawText);
+    if (json && (json.score !== undefined || json.grade)) {
       score = json.score || 0;
       grade = json.grade || '';
       checks = json.checks || [];
       canProceed = json.canProceed !== false;
-    } catch {
-      // 显示原始文本
-      output.innerHTML = `<div style="padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.85rem;white-space:pre-wrap;">${escapeHtml(rawText)}</div>`;
+      summary = json.summary || '';
+    } else {
+      // 文本直接显示，不走 JSON 路线
+      output.innerHTML = `<div style="padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.85rem;white-space:pre-wrap;line-height:1.7;">${escapeHtml(rawText)}</div>`;
+      // 仍然存储原始数据用于导出
+      state.lastReviewData = { raw: rawText, score: 0, grade: '待人工评估', checks: [], canProceed: true, summary: rawText };
       return;
     }
+
+    // 存储审核数据用于导出
+    state.lastReviewData = { score, grade, checks, canProceed, summary, content };
 
     const scoreColor = score >= 90 ? '#10b981' : score >= 70 ? '#f59e0b' : '#f87171';
     const checksHtml = checks.map(c => {
@@ -851,10 +896,10 @@ async function runContentReview() {
   <div class="report-items">${checksHtml || '<div style="padding:12px;color:rgba(240,240,255,0.4);font-size:0.85rem;">暂无详细检查项</div>'}</div>
   ${canProceed ? `
   <div style="padding:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:0.82rem;color:#10b981;">
-    ✅ ${escapeHtml(result.data?.summary || '剧本内容符合儿童动画创作标准，可进入下一步生产流程。')}
+    ✅ ${escapeHtml(summary || '剧本内容符合儿童动画创作标准，可进入下一步生产流程。')}
   </div>` : `
   <div style="padding:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:0.82rem;color:#f87171;">
-    ❌ ${escapeHtml(result.data?.summary || '剧本内容需要修改，请参考上述修改建议。')}
+    ❌ ${escapeHtml(summary || '剧本内容需要修改，请参考上述修改建议。')}
   </div>`}
 </div>`;
   } catch (err) {
@@ -909,7 +954,6 @@ function optimizeScript() {
     alert('请先生成剧本内容');
     return;
   }
-  // 复用 review 接口，让 AI 提供优化建议
   runScriptOptimization();
 }
 
@@ -918,17 +962,48 @@ async function runScriptOptimization() {
   if (!state.scriptContent) return;
 
   output.insertAdjacentHTML('beforeend', `
-<div class="loading-spinner" id="optLoading" style="margin-top:16px;"><div class="spinner"></div><div style="loading-text">MiniMax 正在分析剧本...</div></div>`);
+<div class="loading-spinner" id="optLoading" style="margin-top:16px;"><div class="spinner"></div><div style="font-size:0.82rem;color:rgba(167,139,250,0.8);">MiniMax 正在分析剧本...</div></div>`);
 
   try {
-    const result = await apiCall('/review', { content: state.scriptContent + '\n\n请从以下维度提供优化建议：1.结构完整度 2.节奏优化 3.对白自然度 4.适龄评估 5.画面感' });
+    const result = await apiCall('/review', {
+      content: state.scriptContent + '\n\n请从以下维度提供优化建议：1.结构完整度 2.节奏优化 3.对白自然度 4.适龄评估 5.画面感'
+    });
+
+    // 提取并清理响应
+    let rawText = '';
+    const mm = result.raw || result.data || result;
+    const choices = mm?.choices;
+    if (choices && choices.length > 0) {
+      const raw = choices[0]?.message?.content || '';
+      rawText = stripThinkingTags(raw);
+    }
+    if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
+
+    // 尝试解析 JSON 优化建议
+    const json = robustJSONExtract(rawText);
+    let suggestionsHtml = '';
+    if (json && (json.suggestions || json.sections || json.issues)) {
+      const sections = json.suggestions || json.sections || [];
+      suggestionsHtml = sections.map(s => {
+        const title = escapeHtml(s.title || s.item || '');
+        const body = escapeHtml(s.body || s.detail || s.suggestion || '');
+        return `<div style="margin-bottom:12px;">
+  <div style="font-weight:700;color:#a78bfa;margin-bottom:4px;">📌 ${title}</div>
+  <div style="color:rgba(240,240,255,0.8);line-height:1.6;">${body}</div>
+</div>`;
+      }).join('');
+    } else if (rawText.trim()) {
+      // 直接显示文本
+      suggestionsHtml = `<div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(rawText)}</div>`;
+    } else {
+      suggestionsHtml = '<div style="color:rgba(240,240,255,0.5);">未能获取优化建议</div>';
+    }
+
     const opt = document.getElementById('optLoading');
     if (opt) opt.remove();
-
-    let rawText = (result.raw || result.data || result).choices?.[0]?.message?.content || '';
     output.insertAdjacentHTML('beforeend', `
-<div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-size:0.82rem;white-space:pre-wrap;">
-  <strong style="color:#a78bfa;">✨ AI 剧本优化建议：</strong><br/><br/>${escapeHtml(rawText)}
+<div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-size:0.82rem;">
+  <strong style="color:#a78bfa;">✨ AI 剧本优化建议</strong><br/><br/>${suggestionsHtml}
 </div>`);
   } catch (err) {
     const opt = document.getElementById('optLoading');
@@ -937,32 +1012,193 @@ async function runScriptOptimization() {
   }
 }
 
-function extractEduValues() {
+async function extractEduValues() {
   if (!state.scriptContent) {
     alert('请先生成剧本内容');
     return;
   }
   const output = document.getElementById('scriptOutput');
-  output.insertAdjacentHTML('beforeend', `
+
+  // 如果剧本数据已有 eduValues，直接显示
+  const existingEdu = state.lastScriptData?.eduValues;
+  if (existingEdu && existingEdu.length > 0) {
+    const tagsHtml = existingEdu.map(e =>
+      `<span style="display:inline-block;padding:4px 12px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:99px;font-size:0.82rem;color:#10b981;margin:4px;">🎯 ${escapeHtml(e)}</span>`
+    ).join('');
+    output.insertAdjacentHTML('beforeend', `
 <div style="margin-top:16px;padding:14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.82rem;">
-  <strong style="color:#10b981;">🎓 教育价值分析报告：</strong><br/><br/>
-  <div style="font-size:0.82rem;color:rgba(240,240,255,0.7);">从剧本内容分析中提取教育主题...</div>
+  <strong style="color:#10b981;">🎓 教育价值分析报告</strong><br/><br/>
+  <div>${tagsHtml}</div>
 </div>`);
+    return;
+  }
+
+  output.insertAdjacentHTML('beforeend', `
+<div class="loading-spinner" id="eduLoading" style="margin-top:16px;"><div class="spinner"></div><div style="font-size:0.82rem;color:rgba(16,185,129,0.8);">MiniMax 正在分析教育主题...</div></div>`);
+
+  try {
+    // 使用 /review 接口，让 AI 分析剧本中的教育价值
+    const result = await apiCall('/review', {
+      content: `请分析以下儿童动画剧本，提取其中的教育价值和主题（请直接列出，不要 JSON 格式）：\n\n${state.scriptContent.substring(0, 3000)}`
+    });
+
+    const eduLoading = document.getElementById('eduLoading');
+    if (eduLoading) eduLoading.remove();
+
+    let rawText = '';
+    const mm = result.raw || result.data || result;
+    const choices = mm?.choices;
+    if (choices && choices.length > 0) {
+      const raw = choices[0]?.message?.content || '';
+      rawText = stripThinkingTags(raw);
+    }
+    if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
+
+    // 尝试从文本中提取教育主题关键词
+    const eduKeywords = ['友谊', '合作', '勇气', '探索', '环保', '生态', '亲情', '家庭', '学习', '求知', '包容', '多元', '健康', '规则', '诚实', '善良', '分享', '责任', '创新', '想象'];
+    const found = eduKeywords.filter(k => rawText.includes(k));
+    const fallback = found.length > 0 ? found : ['教育主题分析中'];
+    const tagsHtml = fallback.map(e =>
+      `<span style="display:inline-block;padding:4px 12px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:99px;font-size:0.82rem;color:#10b981;margin:4px;">🎯 ${escapeHtml(e)}</span>`
+    ).join('');
+
+    output.insertAdjacentHTML('beforeend', `
+<div style="margin-top:16px;padding:14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.82rem;">
+  <strong style="color:#10b981;">🎓 教育价值分析报告</strong><br/><br/>
+  <div>${tagsHtml}</div>
+  ${rawText.trim() ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(16,185,129,0.2);color:rgba(240,240,255,0.7);font-size:0.78rem;white-space:pre-wrap;line-height:1.6;">${escapeHtml(rawText)}</div>` : ''}
+</div>`);
+  } catch (err) {
+    const eduLoading = document.getElementById('eduLoading');
+    if (eduLoading) eduLoading.remove();
+    output.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;color:#f87171;font-size:0.8rem;">❌ ${err.message}</div>`);
+  }
 }
 
-function reviewScript() { switchCSTab('review'); }
+function reviewScript() {
+  if (state.scriptContent) {
+    const reviewContent = document.getElementById('reviewContent');
+    if (reviewContent) reviewContent.value = state.scriptContent;
+  }
+  switchCSTab('review');
+}
 function saveToAssets() {
   alert('✅ 已成功存入您的资产库！可在"资产管理"中查看');
 }
 
+// ── 下载剧本 ─────────────────────────────────────────────────────
+function downloadScript() {
+  const data = state.lastScriptData;
+  const text = state.scriptContent;
+
+  if (!text && !data) {
+    alert('请先生成剧本');
+    return;
+  }
+
+  const timestamp = new Date().toLocaleString('zh-CN');
+  let content = '';
+
+  if (data) {
+    // 格式化为易读文本
+    const title = data.title || '未命名剧本';
+    content = `籁鸣导演 — 动画剧本\n`;
+    content += `生成时间：${timestamp}\n`;
+    content += `═`.repeat(40) + '\n';
+    content += `《${title}》\n`;
+    content += `适用年龄：${data.ageGroup || '未指定'}\n`;
+    content += `教育主题：${data.theme || '未指定'}\n`;
+    content += `═`.repeat(40) + '\n\n';
+
+    const chars = data.characters || [];
+    if (chars.length > 0) {
+      content += `【角色】\n`;
+      chars.forEach(c => { content += `  ▶ ${c.name}（${c.role}）：${c.description || ''}\n`; });
+      content += '\n';
+    }
+
+    const acts = data.acts || [];
+    acts.forEach(act => {
+      content += `【${act.act}】\n`;
+      (act.scenes || []).forEach(scene => {
+        if (scene.location) content += `  📍 ${scene.sceneNum} ${scene.location} - ${scene.time}\n`;
+        if (scene.narration) content += `  旁白：${scene.narration}\n`;
+        (scene.dialogues || []).forEach(d => {
+          content += `  ${d.character}（${d.type}）：${d.content}\n`;
+        });
+        if (scene.cameraNote) content += `  📷 ${scene.cameraNote}\n`;
+      });
+      content += '\n';
+    });
+
+    const edu = data.eduValues || [];
+    if (edu.length > 0) {
+      content += `【教育价值】\n  ${edu.join(' · ')}\n\n`;
+    }
+  } else {
+    // 直接下载原始 JSON
+    content = text;
+  }
+
+  const blob = data
+    ? new Blob([content], { type: 'text/plain;charset=utf-8' })
+    : new Blob([text], { type: 'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `籁鸣导演_剧本_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── 导出审核报告 ─────────────────────────────────────────────────
 function exportReport() {
-  const content = `籁鸣导演 — 内容审核报告
-生成时间：${new Date().toLocaleString()}
-合规评分：详见平台审核结果
-结论：内容符合广电少儿节目制作标准`;
+  const review = state.lastReviewData;
+  const timestamp = new Date().toLocaleString('zh-CN');
+
+  if (!review) {
+    alert('请先执行内容审核');
+    return;
+  }
+
+  const score = review.score || 0;
+  const grade = review.grade || '待评估';
+  const canProceed = review.canProceed;
+  const checks = review.checks || [];
+  const summary = review.summary || '';
+  const scriptContent = review.content || '';
+
+  let content = `籁鸣导演 — 内容安全审核报告\n`;
+  content += `生成时间：${timestamp}\n`;
+  content += `═`.repeat(40) + '\n';
+  content += `合规评分：${score} / 100\n`;
+  content += `评级结果：${grade}\n`;
+  content += `审核结论：${canProceed ? '✅ 通过 — 可进入下一步生产流程' : '❌ 不通过 — 需要修改'}\n`;
+  content += `═`.repeat(40) + '\n\n`;
+
+  if (checks.length > 0) {
+    content += `【详细检查项】\n`;
+    checks.forEach((c, i) => {
+      const icon = c.status === 'pass' ? '✅' : c.status === 'warn' ? '⚠️' : '❌';
+      content += `${i + 1}. ${icon} ${c.item || '检查项'}\n`;
+      if (c.detail) content += `   说明：${c.detail}\n`;
+      if (c.suggestion) content += `   建议：${c.suggestion}\n`;
+    });
+    content += '\n';
+  }
+
+  if (summary) {
+    content += `【审核总结】\n${summary}\n\n`;
+  }
+
+  if (scriptContent) {
+    content += `═`.repeat(40) + '\n';
+    content += `【被审核剧本内容（前2000字）】\n`;
+    content += scriptContent.substring(0, 2000) + (scriptContent.length > 2000 ? '\n...(内容截断)' : '');
+  }
+
   const a = document.createElement('a');
   a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
-  a.download = '内容审核报告.txt';
+  a.download = `籁鸣导演_审核报告_${new Date().toISOString().slice(0, 10)}.txt`;
   a.click();
 }
 

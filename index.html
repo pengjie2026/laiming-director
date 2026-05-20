@@ -1137,8 +1137,13 @@
                     <input type="text" id="storyTheme" placeholder="例如：小兔子寻找彩虹花" class="cs-input" />
                   </div>
                   <div class="cs-field">
+                    <label>一句话故事描述 <span style="font-weight:400;color:rgba(167,139,250,0.5);font-size:0.75rem;">（可选，补充具体情节要求）</span></label>
+                    <input type="text" id="storyDesc" placeholder="例如：教小朋友勇敢面对黑暗，不要害怕" class="cs-input" />
+                  </div>
+                  <div class="cs-field">
                     <label>目标年龄段</label>
                     <div class="cs-radio-group">
+                      <label class="cs-radio"><input type="radio" name="ageGroup" value="0-3" /> 0-3岁</label>
                       <label class="cs-radio"><input type="radio" name="ageGroup" value="3-6" checked /> 3-6岁</label>
                       <label class="cs-radio"><input type="radio" name="ageGroup" value="7-12" /> 7-12岁</label>
                       <label class="cs-radio"><input type="radio" name="ageGroup" value="all" /> 全年龄</label>
@@ -1146,11 +1151,29 @@
                   </div>
                   <div class="cs-field">
                     <label>剧集时长</label>
-                    <select class="cs-select" id="epDuration">
-                      <option>3分钟（短片）</option>
-                      <option>5分钟（微动画）</option>
-                      <option>15分钟（标准集）</option>
-                    </select>
+                    <div class="cs-field-row" style="gap:8px;align-items:center;">
+                      <select class="cs-select" id="epDuration" style="flex:1;">
+                        <option value="1">1分钟（超短片）</option>
+                        <option value="3">3分钟（短片）</option>
+                        <option value="5" selected>5分钟（微动画）</option>
+                        <option value="10">10分钟（短标准集）</option>
+                        <option value="15">15分钟（标准集）</option>
+                        <option value="custom">自定义</option>
+                      </select>
+                      <input type="number" id="customDuration" placeholder="分钟" min="1" max="30" style="width:72px;display:none;padding:6px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#e2e8f0;font-size:0.82rem;" />
+                    </div>
+                  </div>
+                  <div class="cs-field">
+                    <label>生成集数</label>
+                    <div class="cs-field-row" style="gap:8px;align-items:center;">
+                      <select class="cs-select" id="episodeCount" style="flex:1;">
+                        <option value="1" selected>1集</option>
+                        <option value="2">2集</option>
+                        <option value="3">3集</option>
+                        <option value="5">5集</option>
+                        <option value="10">10集</option>
+                      </select>
+                    </div>
                   </div>
                   <div class="cs-field">
                     <label>教育主题（可多选）</label>
@@ -1159,7 +1182,12 @@
                       <label class="cs-checkbox"><input type="checkbox" /> 💪 勇气探索</label>
                       <label class="cs-checkbox"><input type="checkbox" /> 🌱 生态环保</label>
                       <label class="cs-checkbox"><input type="checkbox" /> ❤️ 家庭亲情</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> 📚 求知学习</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> 🌈 多元包容</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> 🍎 健康生活</label>
+                      <label class="cs-checkbox"><input type="checkbox" /> 🏠 规则意识</label>
                     </div>
+                    <input type="text" id="customEduTheme" placeholder="+ 自填其他教育主题（用逗号分隔）" class="cs-input" style="margin-top:8px;font-size:0.78rem;" />
                   </div>
                   <button class="cs-generate-btn" onclick="generateScript()">
                     <span id="scriptBtnIcon">✨</span>
@@ -1173,6 +1201,7 @@
                 <div class="cs-section-title">
                   剧本内容
                   <div class="cs-output-actions">
+                    <button class="cs-action-btn" id="downloadScriptBtn" onclick="downloadScript()" style="display:none;">📥 下载剧本</button>
                     <button class="cs-action-btn" onclick="optimizeScript()">🔄 优化</button>
                     <button class="cs-action-btn" onclick="extractEduValues()">🎓 教育价值</button>
                     <button class="cs-action-btn" onclick="reviewScript()">🛡️ 审核</button>
@@ -1421,8 +1450,10 @@
                   <div class="cs-field">
                     <label>目标受众年龄</label>
                     <select class="cs-select">
+                      <option>0-3岁（婴儿/托幼）</option>
                       <option>3-6岁（学前）</option>
                       <option selected>7-12岁（小学）</option>
+                      <option>全年龄</option>
                     </select>
                   </div>
                   <button class="cs-generate-btn" onclick="runContentReview()">🛡️ 开始内容审核</button>
