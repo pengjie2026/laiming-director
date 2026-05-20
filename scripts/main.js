@@ -378,7 +378,16 @@ async function generateScript() {
     state.scriptContent = scriptText;
     setBtnState(btn, '✨', '重新生成剧本', false);
   } catch (err) {
-    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;white-space:pre-wrap;">❌ 生成失败：\n\n${err.message}</div>`;
+    // 检查是否是 MiniMax 余额不足
+    let isBalanceErr = err.message.includes('insufficient balance') || err.message.includes('1008');
+    output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;">
+      ${isBalanceErr
+        ? `<div style="font-size:1rem;font-weight:700;margin-bottom:8px;">⚠️ MiniMax 额度不足</div>
+           <div>Token Plan 余额已用完，请前往 <a href="https://platform.minimaxi.com/subscribe/token-plan" target="_blank" style="color:#a78bfa;">MiniMax Token Plan</a> 充值后重试。</div>
+           <div style="margin-top:8px;font-size:0.75rem;color:rgba(240,240,255,0.5);">错误码：1008 · insufficient balance</div>`
+        : `❌ 生成失败：\n\n${err.message}`
+      }
+    </div>`;
     setBtnState(btn, '✨', '重新生成剧本', false);
   }
 }
