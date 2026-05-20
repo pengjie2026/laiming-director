@@ -4,14 +4,14 @@
    ================================================================ */
 
 // -- MiniMax API 配置 ---------------------------------------------
-// ⚠️ 部署 Cloudflare Worker 后，将下方的 workerUrl 替换为实际地址
+// ⚠️ Vercel Node.js Serverless Functions 地址（当前已配置）
 // 部署步骤：
 //   cd ai-features
 //   wrangler login
 //   wrangler secret put MINIMAX_API_KEY
 //   wrangler deploy
 const API_CONFIG = {
-  workerUrl: 'https://laiming-director-ai.laopeng.workers.dev',  // Cloudflare Worker 地址
+  workerUrl: 'https://laiming-director.vercel.app',  // Vercel Edge Functions 地址（部署后替换）
 
   isConfigured() {
     return !!this.workerUrl && this.workerUrl.startsWith('http');
