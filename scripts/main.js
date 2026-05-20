@@ -11,7 +11,7 @@
 //   wrangler secret put MINIMAX_API_KEY
 //   wrangler deploy
 const API_CONFIG = {
-  workerUrl: 'https://laiming-director-ai.abc123.workers.dev',  // Cloudflare Worker 地址
+  workerUrl: 'https://laiming-director-ai.laopeng.workers.dev',  // Cloudflare Worker 地址
 
   isConfigured() {
     return !!this.workerUrl && this.workerUrl.startsWith('http');
