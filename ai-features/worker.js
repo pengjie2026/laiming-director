@@ -105,7 +105,7 @@ async function handleScript(req, env, headers) {
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    tokens_to_generate: 2000,
+    max_completion_tokens: 2000,
     temperature: 0.8,
   }, env);
 
@@ -152,7 +152,7 @@ async function handleStoryboard(req, env, headers) {
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `请为以下动画场景生成详细分镜规划：${scene}，画风：${style}` },
     ],
-    tokens_to_generate: 1500,
+    max_completion_tokens: 1500,
     temperature: 0.7,
   }, env);
 
@@ -304,7 +304,7 @@ async function handleReview(req, env, headers) {
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `请审核以下剧本内容是否符合儿童动画标准：\n\n${content.substring(0, 4000)}` },
     ],
-    tokens_to_generate: 1000,
+    max_completion_tokens: 1000,
     temperature: 0.3,
   }, env);
 

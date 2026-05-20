@@ -325,14 +325,16 @@ async function generateScript() {
     const result = await apiCall('/script', { theme, ageGroup });
 
     // 解析 MiniMax 返回的文本
+    // MiniMax 响应格式: choices[0].message.content
     let scriptText = '';
-    const choices = result.data?.choices;
+    const mm = result.data || result;
+    const choices = mm.choices;
     if (choices && choices.length > 0) {
-      scriptText = choices[0]?.messages?.[0]?.content ||
-                   choices[0]?.message?.content || '';
+      scriptText = choices[0]?.message?.content || '';
     }
     if (!scriptText) {
-      scriptText = result.data?.text || result.data || JSON.stringify(result.data, null, 2);
+      // 兜底：直接字符串化
+      scriptText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
     }
 
     // 尝试解析 JSON
@@ -422,12 +424,12 @@ async function generateStoryboard() {
   try {
     const result = await apiCall('/storyboard', { scene, style });
     let rawText = '';
-    const choices = result.data?.choices;
+    const mm = result.data || result;
+    const choices = mm.choices;
     if (choices && choices.length > 0) {
-      rawText = choices[0]?.messages?.[0]?.content ||
-                choices[0]?.message?.content || '';
+      rawText = choices[0]?.message?.content || '';
     }
-    if (!rawText) rawText = result.data?.text || JSON.stringify(result.data, null, 2);
+    if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
 
     // 尝试解析 JSON
     let cardsHtml = '';
@@ -611,12 +613,12 @@ async function runContentReview() {
   try {
     const result = await apiCall('/review', { content });
     let rawText = '';
-    const choices = result.data?.choices;
+    const mm = result.data || result;
+    const choices = mm.choices;
     if (choices && choices.length > 0) {
-      rawText = choices[0]?.messages?.[0]?.content ||
-                choices[0]?.message?.content || '';
+      rawText = choices[0]?.message?.content || '';
     }
-    if (!rawText) rawText = result.data?.text || JSON.stringify(result.data, null, 2);
+    if (!rawText) rawText = typeof mm === 'string' ? mm : JSON.stringify(mm, null, 2);
 
     let score = 0, grade = '', checks = [], canProceed = false;
 
@@ -735,7 +737,7 @@ async function runScriptOptimization() {
     const opt = document.getElementById('optLoading');
     if (opt) opt.remove();
 
-    let rawText = result.data?.choices?.[0]?.message?.content || result.data?.text || '';
+    let rawText = (result.data || result).choices?.[0]?.message?.content || '';
     output.insertAdjacentHTML('beforeend', `
 <div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;font-size:0.82rem;white-space:pre-wrap;">
   <strong style="color:#a78bfa;">✨ AI 剧本优化建议：</strong><br/><br/>${escapeHtml(rawText)}
