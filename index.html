@@ -1647,5 +1647,23 @@
   </footer>
 
   <script src="scripts/main.js"></script>
+
+  <!-- API 连通性诊断（生产环境可移除） -->
+  <script>
+  (async function diagnose() {
+    const API_URL = 'https://laiming-director.vercel.app';
+    const results = [];
+    const start = Date.now();
+    try {
+      const r = await fetch(API_URL + '/api/health', { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(15000) });
+      const text = await r.text().catch(() => '');
+      results.push({ step: 'health', ok: r.ok, status: r.status, time: Date.now()-start + 'ms', body: text.slice(0,100) });
+    } catch(e) {
+      results.push({ step: 'health', ok: false, error: e.name + ': ' + e.message, time: Date.now()-start + 'ms' });
+    }
+    console.log('[DIAGNOSE] API连通性诊断结果:', results);
+    window.__API_DIAGNOSE = results;
+  })();
+  </script>
 </body>
 </html>

@@ -65,6 +65,7 @@ async function apiCall(endpoint, body) {
       return resp.json();
     } catch (err) {
       lastErr = err;
+      console.error(`[API 请求失败] 尝试 ${attempt + 1}/3, endpoint=${endpoint}, error=${err.name}: ${err.message}`);
       const isNetworkErr = err.name === 'TypeError' || err.name === 'AbortError' || err.message?.includes('Load failed') || err.message?.includes('NetworkError') || err.message?.includes('Failed to fetch');
       if (!isNetworkErr) throw err; // 非网络错误直接抛出
       if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // 指数退避
