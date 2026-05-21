@@ -126,11 +126,14 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
       .replace(/```json\n?/gi, '')
       .replace(/```\n?/g, '')
       .trim();
+    // 去掉可能残留的 ``` 标记（有时模型会在JSON外套多层代码块）
+    rawContent = rawContent.replace(/^```\s*/gm, '').replace(/\s*```$/gm, '').trim();
     cleanedContent = rawContent;
   }
 
   let scriptData = null;
-  try { scriptData = JSON.parse(cleanedContent); } catch (_) {}
+  let parseError = null;
+  try { scriptData = JSON.parse(cleanedContent); } catch (e) { parseError = e.message; }
 
   const totalTime = Date.now() - startTime;
   console.log(`[script] Request completed in ${totalTime}ms, script parsed=${scriptData !== null}`);
@@ -139,6 +142,6 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
     content: cleanedContent,
     script: scriptData,
     model: 'MiniMax-M2.7-highspeed',
-    _debug: { serverTimeMs: totalTime, apiTimeMs: data?._debug?.apiTimeMs || null },
+    _debug: { serverTimeMs: totalTime, apiTimeMs: data?.usage?.completion_tokens ? 'available' : null, parseError },
   }));
 }
