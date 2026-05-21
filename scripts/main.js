@@ -712,7 +712,8 @@ function robustJSONExtract(text) {
 
 // -- AI 生成提示词 ------------------------------------------------
 async function generatePrompt() {
-  const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
+  const theme = document.getElementById('storyTheme').value.trim() || '';
+  if (!theme) { alert('请先输入故事主题'); return; }
   const ageGroup = document.querySelector('input[name="ageGroup"]:checked')?.value || '3-6';
   const storyDesc = document.getElementById('storyDesc')?.value?.trim() || '';
   const epDuration = document.getElementById('epDuration')?.value || '5';
@@ -729,42 +730,29 @@ async function generatePrompt() {
   promptBtn.disabled = true;
 
   const durationText = epDuration === 'custom' && customDuration ? `${customDuration}分钟` : `${epDuration}分钟`;
-  const eduText = selectedEdu.length > 0 ? selectedEdu.join('、') : (customEdu || '友谊合作');
-
-  const systemPrompt = `你是一位专业的AI提示词工程师，擅长为儿童动画剧本生成系统撰写高质量、结构化的中文提示词。
-请根据用户提供的基本信息，生成一段直接可用的、结构化的AI提示词。提示词应当：
-1. 明确指定目标受众年龄
-2. 明确故事主题和核心冲突
-3. 指定教育价值导向
-4. 指定叙事节奏和风格
-5. 包含角色设计方向
-6. 输出为可直接复制给AI模型的纯文本提示词（不要JSON格式）`;
-
-  const userPrompt = `请为以下儿童动画剧本生成一段高质量的AI提示词：
-
-主题：${theme}
-目标年龄：${ageGroup}岁
-集数：${episodeCount}集
-单集时长：${durationText}
-教育主题：${eduText}
-${storyDesc ? '补充要求：' + storyDesc : ''}
-
-请直接输出提示词文本，不要任何额外说明。`;
+  const eduText = selectedEdu.length > 0 ? selectedEdu.join('、') : (customEdu || '科学探索、友谊合作');
 
   try {
-    const result = await apiCall('/api/script', {
-      theme: '生成提示词',
+    // 现在调用专用的 /api/prompt 端点
+    const result = await apiCall('/api/prompt', {
+      theme,
       ageGroup,
-      extraPrompt: userPrompt
+      storyDesc,
+      eduThemes: eduText,
+      episodeCount,
+      duration: durationText
     });
 
-    let promptText = '';
-    const mm = result.raw || result.data || result;
-    const choices = mm?.choices;
-    if (choices && choices.length > 0) {
-      promptText = stripThinkingTags(choices[0]?.message?.content || '');
+    let promptText = result.prompt || result.content || '';
+
+    // 如果后端返回的仍然是 MiniMax 原始响应格式，做兜底解析
+    if (!promptText) {
+      const mm = result.raw || result.data || result;
+      const choices = mm?.choices;
+      if (choices && choices.length > 0) {
+        promptText = stripThinkingTags(choices[0]?.message?.content || '');
+      }
     }
-    if (!promptText) promptText = result.content || '';
 
     // 显示提示词编辑区
     const promptArea = document.getElementById('promptArea');

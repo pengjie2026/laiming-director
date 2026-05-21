@@ -8,7 +8,8 @@
     "api/image.js": { "maxDuration": 300 },
     "api/tts.js": { "maxDuration": 300 },
     "api/review.js": { "maxDuration": 300 },
-    "api/video.js": { "maxDuration": 300 }
+    "api/video.js": { "maxDuration": 300 },
+    "api/prompt.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/health", "destination": "/api/health" },
@@ -17,7 +18,8 @@
     { "source": "/image", "destination": "/api/image" },
     { "source": "/tts", "destination": "/api/tts" },
     { "source": "/review", "destination": "/api/review" },
-    { "source": "/video", "destination": "/api/video" }
+    { "source": "/video", "destination": "/api/video" },
+    { "source": "/prompt", "destination": "/api/prompt" }
   ],
   "headers": [
     {
@@ -29,7 +31,7 @@
       ]
     },
     {
-      "source": "/(script|storyboard|image|tts|review|video|health)",
+      "source": "/(script|storyboard|image|tts|review|video|health|prompt)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
