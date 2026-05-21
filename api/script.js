@@ -128,6 +128,11 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
       .trim();
     // 去掉可能残留的 ``` 标记（有时模型会在JSON外套多层代码块）
     rawContent = rawContent.replace(/^```\s*/gm, '').replace(/\s*```$/gm, '').trim();
+    // 修复模型生成的JSON中的中文标点错误（全角冒号、引号等）
+    rawContent = rawContent
+      .replace(/(["']\w+["'])\s*：/g, '$1:')   // "key"： → "key":
+      .replace(/：\s*"/g, ':\"')               // ："value" → :"value"
+      .replace(/(["'])\s*：/g, '$1:');         // 兜底：任何引号后的全角冒号
     cleanedContent = rawContent;
   }
 
