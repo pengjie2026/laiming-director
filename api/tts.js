@@ -1,5 +1,3 @@
-// POST /api/tts — 语音合成
-
 const MINIMAX_BASE = 'https://api.minimax.chat';
 
 async function minimaxRequest(url, body) {

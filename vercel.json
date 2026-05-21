@@ -1,6 +1,15 @@
 {
   "version": 2,
   "buildCommand": null,
+  "functions": {
+    "api/health.js": { "maxDuration": 10 },
+    "api/script.js": { "maxDuration": 300 },
+    "api/storyboard.js": { "maxDuration": 300 },
+    "api/image.js": { "maxDuration": 300 },
+    "api/tts.js": { "maxDuration": 300 },
+    "api/review.js": { "maxDuration": 300 },
+    "api/video.js": { "maxDuration": 300 }
+  },
   "headers": [
     {
       "source": "/api/(.*)",

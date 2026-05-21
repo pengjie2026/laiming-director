@@ -1,4 +1,3 @@
-// POST /api/script — 剧本生成
 const MINIMAX_BASE = 'https://api.minimax.chat';
 
 export default async function handler(req, res) {

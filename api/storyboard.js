@@ -1,5 +1,3 @@
-// POST /api/storyboard — 分镜规划
-
 const MINIMAX_BASE = 'https://api.minimax.chat';
 
 async function minimaxRequest(url, body) {
