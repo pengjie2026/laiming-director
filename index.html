@@ -1653,15 +1653,38 @@
   (async function diagnose() {
     const API_URL = 'https://laiming-director.vercel.app';
     const results = [];
-    const start = Date.now();
-    try {
-      const r = await fetch(API_URL + '/api/health', { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(15000) });
-      const text = await r.text().catch(() => '');
-      results.push({ step: 'health', ok: r.ok, status: r.status, time: Date.now()-start + 'ms', body: text.slice(0,100) });
-    } catch(e) {
-      results.push({ step: 'health', ok: false, error: e.name + ': ' + e.message, time: Date.now()-start + 'ms' });
+    const banner = document.createElement('div');
+    banner.id = 'diag-banner';
+    banner.style = 'position:fixed;bottom:20px;right:20px;z-index:99999;background:#1a1a2e;border:1px solid #a78bfa;border-radius:12px;padding:16px 20px;max-width:380px;font-size:13px;color:#e0e0e0;font-family:monospace;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    document.body.appendChild(banner);
+
+    function update(msg, color='#a78bfa') {
+      banner.innerHTML = '<b style="color:#a78bfa">🔍 API诊断:</b> ' + (color ? `<span style="color:${color}">${msg}</span>` : msg);
     }
-    console.log('[DIAGNOSE] API连通性诊断结果:', results);
+
+    update('检测中...');
+    try {
+      let start = Date.now();
+      const r1 = await fetch(API_URL + '/api/health', { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(15000) });
+      const t1 = await r1.text().catch(() => '');
+      results.push({ step: 'health', ok: r1.ok, status: r1.status, time: Date.now()-start + 'ms' });
+      update(`✅ Health OK (${r1.status}) ${Date.now()-start}ms | 测试Script...`, '#4ade80');
+
+      start = Date.now();
+      const r2 = await fetch(API_URL + '/api/script', {
+        method: 'POST', mode: 'cors', signal: AbortSignal.timeout(65000),
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({theme:'测试', ageGroup:'3-6岁'})
+      });
+      const t2 = await r2.text().catch(() => '');
+      results.push({ step: 'script', ok: r2.ok, status: r2.status, time: Date.now()-start + 'ms' });
+      const data = JSON.parse(t2);
+      update(`✅ Script OK (${r2.status}) ${Date.now()-start}ms | 剧本:${data.content?.title || 'OK'}`, '#4ade80');
+    } catch(e) {
+      const step = results.length === 0 ? 'health' : 'script';
+      results.push({ step, ok: false, error: e.name + ': ' + e.message });
+      update(`❌ ${step.toUpperCase()}失败: ${e.name} — ${e.message}`, '#f87171');
+    }
     window.__API_DIAGNOSE = results;
   })();
   </script>
