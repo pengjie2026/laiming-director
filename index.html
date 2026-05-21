@@ -1189,6 +1189,20 @@
                     </div>
                     <input type="text" id="customEduTheme" placeholder="+ 自填其他教育主题（用逗号分隔）" class="cs-input" style="margin-top:8px;font-size:0.78rem;" />
                   </div>
+                  <!-- AI 提示词区域 -->
+                  <div id="promptArea" style="display:none;margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                      <label style="font-size:0.8rem;color:rgba(167,139,250,0.9);font-weight:600;">📝 AI 生成提示词（可编辑）</label>
+                      <button onclick="useDefaultPrompt()" style="padding:3px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:rgba(240,240,255,0.5);font-size:0.72rem;cursor:pointer;">恢复默认</button>
+                    </div>
+                    <textarea id="customPromptText" style="width:100%;min-height:100px;padding:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(124,58,237,0.25);border-radius:10px;color:#e2e8f0;font-size:0.82rem;line-height:1.6;resize:vertical;" placeholder="点击上方按钮生成提示词..."></textarea>
+                    <div style="font-size:0.72rem;color:rgba(240,240,255,0.4);margin-top:4px;">💡 提示词将直接发送给AI模型，编辑后点击「AI 生成剧本」生效</div>
+                  </div>
+
+                  <button class="cs-generate-btn" id="generatePromptBtn" onclick="generatePrompt()" style="margin-bottom:8px;background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.3);">
+                    <span>🪄</span>
+                    <span>AI 生成提示词</span>
+                  </button>
                   <button class="cs-generate-btn" onclick="generateScript()">
                     <span id="scriptBtnIcon">✨</span>
                     <span id="scriptBtnText">AI 生成剧本</span>

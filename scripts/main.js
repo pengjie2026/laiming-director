@@ -380,8 +380,9 @@ function stripThinkingTags(text) {
   return text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')       // 去除 think block
     .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '') // 去除 reasoning block
-    .replace(/^```(?:json)?\s*/i, '')                 // 去除 markdown 代码块开头
-    .replace(/\s*```$/, '')                           // 去除 markdown 代码块结尾
+    // 全局去除所有 markdown 代码块标记（兼容 JSON 内可能含 ``` 的场景，先精确匹配代码块）
+    .replace(/```json\n?/gi, '')
+    .replace(/```\n?/g, '')
     .trim();
 }
 
@@ -709,6 +710,81 @@ function robustJSONExtract(text) {
   return extractScriptJSON(text);
 }
 
+// -- AI 生成提示词 ------------------------------------------------
+async function generatePrompt() {
+  const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
+  const ageGroup = document.querySelector('input[name="ageGroup"]:checked')?.value || '3-6';
+  const storyDesc = document.getElementById('storyDesc')?.value?.trim() || '';
+  const epDuration = document.getElementById('epDuration')?.value || '5';
+  const customDuration = document.getElementById('customDuration')?.value || '';
+  const episodeCount = parseInt(document.getElementById('episodeCount')?.value) || 1;
+  const customEdu = document.getElementById('customEduTheme')?.value?.trim() || '';
+
+  const eduCheckboxes = document.querySelectorAll('#cs-script .cs-checkbox-group input[type="checkbox"]:checked');
+  const selectedEdu = Array.from(eduCheckboxes).map(cb => cb.parentElement.textContent.trim()).filter(Boolean);
+
+  const promptBtn = document.getElementById('generatePromptBtn');
+  const originalText = promptBtn.innerHTML;
+  promptBtn.innerHTML = '<span>⏳</span><span>生成中...</span>';
+  promptBtn.disabled = true;
+
+  const durationText = epDuration === 'custom' && customDuration ? `${customDuration}分钟` : `${epDuration}分钟`;
+  const eduText = selectedEdu.length > 0 ? selectedEdu.join('、') : (customEdu || '友谊合作');
+
+  const systemPrompt = `你是一位专业的AI提示词工程师，擅长为儿童动画剧本生成系统撰写高质量、结构化的中文提示词。
+请根据用户提供的基本信息，生成一段直接可用的、结构化的AI提示词。提示词应当：
+1. 明确指定目标受众年龄
+2. 明确故事主题和核心冲突
+3. 指定教育价值导向
+4. 指定叙事节奏和风格
+5. 包含角色设计方向
+6. 输出为可直接复制给AI模型的纯文本提示词（不要JSON格式）`;
+
+  const userPrompt = `请为以下儿童动画剧本生成一段高质量的AI提示词：
+
+主题：${theme}
+目标年龄：${ageGroup}岁
+集数：${episodeCount}集
+单集时长：${durationText}
+教育主题：${eduText}
+${storyDesc ? '补充要求：' + storyDesc : ''}
+
+请直接输出提示词文本，不要任何额外说明。`;
+
+  try {
+    const result = await apiCall('/api/script', {
+      theme: '生成提示词',
+      ageGroup,
+      extraPrompt: userPrompt
+    });
+
+    let promptText = '';
+    const mm = result.raw || result.data || result;
+    const choices = mm?.choices;
+    if (choices && choices.length > 0) {
+      promptText = stripThinkingTags(choices[0]?.message?.content || '');
+    }
+    if (!promptText) promptText = result.content || '';
+
+    // 显示提示词编辑区
+    const promptArea = document.getElementById('promptArea');
+    const promptTextarea = document.getElementById('customPromptText');
+    promptTextarea.value = promptText;
+    promptArea.style.display = 'block';
+    promptTextarea.focus();
+  } catch (err) {
+    alert('提示词生成失败：' + err.message);
+  } finally {
+    promptBtn.innerHTML = originalText;
+    promptBtn.disabled = false;
+  }
+}
+
+function useDefaultPrompt() {
+  const promptTextarea = document.getElementById('customPromptText');
+  if (promptTextarea) promptTextarea.value = '';
+}
+
 // -- AI 生成剧本 ----------------------------------------------------
 async function generateScript() {
   const theme = document.getElementById('storyTheme').value || '小兔子寻找彩虹花';
@@ -738,16 +814,22 @@ async function generateScript() {
       <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed · 预计需 50-80 秒</div>
     </div>`;
 
-  // 收集 extraPrompt
-  const extraParts = [];
-  if (storyDesc) extraParts.push(`故事补充要求：${storyDesc}`);
-  if (epDuration === 'custom' && customDuration) extraParts.push(`时长：约${customDuration}分钟`);
-  if (selectedEdu.length > 0) extraParts.push(`教育主题：${selectedEdu.join('、')}`);
-  if (customEdu) extraParts.push(`自定义教育主题：${customEdu}`);
-  const extraPrompt = extraParts.join('；');
+  // 收集 extraPrompt（优先使用用户编辑的自定义提示词）
+  const customPromptText = document.getElementById('customPromptText')?.value?.trim() || '';
+  let extraPrompt = '';
+  if (customPromptText) {
+    extraPrompt = customPromptText;
+  } else {
+    const extraParts = [];
+    if (storyDesc) extraParts.push(`故事补充要求：${storyDesc}`);
+    if (epDuration === 'custom' && customDuration) extraParts.push(`时长：约${customDuration}分钟`);
+    if (selectedEdu.length > 0) extraParts.push(`教育主题：${selectedEdu.join('、')}`);
+    if (customEdu) extraParts.push(`自定义教育主题：${customEdu}`);
+    extraPrompt = extraParts.join('；');
+  }
 
   try {
-    const result = await apiCall('/api/script', { theme, ageGroup, extraPrompt });
+    const result = await apiCall('/api/script', { theme, ageGroup, extraPrompt, episodeCount });
 
     // 优先使用 Worker 预解析的剧本对象（v1.0.2+ Worker 返回 script 字段）
     let scriptData = result.script || null;
@@ -827,11 +909,66 @@ async function generateScript() {
   }
 }
 
-// 渲染剧本 JSON 为 HTML
+// 渲染单集 acts 为 HTML
+function renderActsHtml(acts) {
+  let html = '';
+  acts.forEach(act => {
+    html += `<div class="script-block"><span class="sb-tag">【${escapeHtml(act.act)}】</span><br/>`;
+    (act.scenes || []).forEach(scene => {
+      if (scene.location) {
+        html += `<span class="line-type scene">${escapeHtml(scene.sceneNum + ' ' + scene.location + ' - ' + scene.time)}</span><br/>`;
+      }
+      if (scene.narration) html += `<em>旁白：</em>${escapeHtml(scene.narration)}<br/><br/>`;
+      (scene.dialogues || []).forEach(d => {
+        html += `<em>${escapeHtml(d.character)}（${escapeHtml(d.type)}）：</em>"${escapeHtml(d.content)}"<br/>`;
+      });
+      if (scene.cameraNote) html += `<span class="line-type action">镜头：</span>${escapeHtml(scene.cameraNote)}<br/>`;
+    });
+    html += `</div>`;
+  });
+  return html;
+}
+
+// 渲染剧本 JSON 为 HTML（兼容单集 / 多集）
 function renderScriptJSON(json) {
-  const acts = json.acts || [];
   const chars = json.characters || [];
   const edu = json.eduValues || [];
+
+  // 多集模式
+  if (json.episodes && json.episodes.length > 0) {
+    let html = `<div class="script-section-title">📺 ${escapeHtml(json.seriesTitle || json.title || '系列剧本')} — 共${json.episodes.length}集</div>`;
+
+    html += `<div class="script-block"><span class="sb-tag">【基本信息】</span>
+    适用年龄：${escapeHtml(json.ageGroup || '')}　｜　总集数：${json.totalEpisodes || json.episodes.length}<br/>
+    教育主题：${escapeHtml(json.theme || '')}</div>`;
+
+    if (chars.length > 0) {
+      html += `<div class="script-block"><span class="sb-tag">【角色】</span><br/>`;
+      chars.forEach(c => {
+        html += `▶ ${escapeHtml(c.name)}（${escapeHtml(c.role)}）：${escapeHtml(c.description || '')}<br/>`;
+      });
+      html += `</div>`;
+    }
+
+    json.episodes.forEach((ep, idx) => {
+      html += `<div style="margin-top:20px;padding:14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px;">`;
+      html += `<div style="font-size:1rem;font-weight:700;color:#a78bfa;margin-bottom:8px;">▶ 第${ep.episodeNumber || (idx + 1)}集：${escapeHtml(ep.episodeTitle || ep.title || '')}</div>`;
+      html += `<div style="font-size:0.8rem;color:rgba(240,240,255,0.6);margin-bottom:10px;">时长：${escapeHtml(ep.duration || '')}</div>`;
+      html += renderActsHtml(ep.acts || []);
+      html += `</div>`;
+    });
+
+    if (edu.length > 0) {
+      html += `<div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;font-size:0.82rem;border:1px solid rgba(16,185,129,0.2);">
+      🎓 <strong style="color:#10b981;">教育价值：</strong>${edu.map(e => escapeHtml(e)).join(' · ')}
+      </div>`;
+    }
+
+    return html;
+  }
+
+  // 单集模式（兼容原有格式）
+  const acts = json.acts || [];
 
   let html = `<div class="script-section-title">📋 ${escapeHtml(json.title || '剧本草稿')} — 籁鸣导演 AI 生成</div>`;
 
@@ -847,20 +984,7 @@ function renderScriptJSON(json) {
     html += `</div>`;
   }
 
-  acts.forEach(act => {
-    html += `<div class="script-block"><span class="sb-tag">【${escapeHtml(act.act)}】</span><br/>`;
-    (act.scenes || []).forEach(scene => {
-      if (scene.location) {
-        html += `<span class="line-type scene">${escapeHtml(scene.sceneNum + ' ' + scene.location + ' - ' + scene.time)}</span><br/>`;
-      }
-      if (scene.narration) html += `<em>旁白：</em>${escapeHtml(scene.narration)}<br/><br/>`;
-      (scene.dialogues || []).forEach(d => {
-        html += `<em>${escapeHtml(d.character)}（${escapeHtml(d.type)}）：</em>"${escapeHtml(d.content)}"<br/>`;
-      });
-      if (scene.cameraNote) html += `<span class="line-type action">镜头：</span>${escapeHtml(scene.cameraNote)}<br/>`;
-    });
-    html += `</div>`;
-  });
+  html += renderActsHtml(acts);
 
   if (edu.length > 0) {
     html += `<div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;font-size:0.82rem;border:1px solid rgba(16,185,129,0.2);">
@@ -1305,7 +1429,8 @@ async function runScriptOptimization() {
 
   try {
     const result = await apiCall('/api/review', {
-      content: state.scriptContent + '\n\n请从以下维度提供优化建议：1.结构完整度 2.节奏优化 3.对白自然度 4.适龄评估 5.画面感'
+      content: state.scriptContent + '\n\n请从以下维度提供优化建议：1.结构完整度 2.节奏优化 3.对白自然度 4.适龄评估 5.画面感',
+      mode: 'optimize'
     });
 
     // 提取并清理响应
@@ -1321,16 +1446,67 @@ async function runScriptOptimization() {
     // 尝试解析 JSON 优化建议
     const json = robustJSONExtract(rawText);
     let suggestionsHtml = '';
-    if (json && (json.suggestions || json.sections || json.issues)) {
-      const sections = json.suggestions || json.sections || [];
-      suggestionsHtml = sections.map(s => {
-        const title = escapeHtml(s.title || s.item || '');
-        const body = escapeHtml(s.body || s.detail || s.suggestion || '');
-        return `<div style="margin-bottom:12px;">
-  <div style="font-weight:700;color:#a78bfa;margin-bottom:4px;">📌 ${title}</div>
-  <div style="color:rgba(240,240,255,0.8);line-height:1.6;">${body}</div>
-</div>`;
-      }).join('');
+
+    if (json) {
+      // 新格式：score + summary + strengths + concerns + suggestions
+      const score = json.score;
+      const summary = json.summary || '';
+      const strengths = json.strengths || [];
+      const concerns = json.concerns || [];
+      const suggestions = json.suggestions || [];
+
+      if (score !== undefined || summary || strengths.length || concerns.length || suggestions.length) {
+        suggestionsHtml = '';
+
+        if (score !== undefined) {
+          const scoreColor = score >= 90 ? '#10b981' : score >= 70 ? '#f59e0b' : '#f87171';
+          suggestionsHtml += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <div style="font-size:1.8rem;font-weight:800;color:${scoreColor};">${score}</div>
+            <div style="font-size:0.78rem;color:rgba(240,240,255,0.6);">综合评分</div>
+          </div>`;
+        }
+
+        if (summary) {
+          suggestionsHtml += `<div style="margin-bottom:12px;padding:10px;background:rgba(124,58,237,0.06);border-radius:8px;color:rgba(240,240,255,0.85);line-height:1.6;">${escapeHtml(summary)}</div>`;
+        }
+
+        if (strengths.length > 0) {
+          suggestionsHtml += `<div style="margin-bottom:10px;"><div style="font-weight:700;color:#10b981;margin-bottom:6px;font-size:0.78rem;">👍 优点</div>`;
+          strengths.forEach(s => {
+            suggestionsHtml += `<div style="padding:4px 0;padding-left:12px;color:rgba(240,240,255,0.75);font-size:0.8rem;border-left:2px solid rgba(16,185,129,0.3);">• ${escapeHtml(s)}</div>`;
+          });
+          suggestionsHtml += `</div>`;
+        }
+
+        if (concerns.length > 0) {
+          suggestionsHtml += `<div style="margin-bottom:10px;"><div style="font-weight:700;color:#f59e0b;margin-bottom:6px;font-size:0.78rem;">⚠️ 需关注</div>`;
+          concerns.forEach(c => {
+            const title = escapeHtml(c.title || c.item || '');
+            const body = escapeHtml(c.body || c.detail || c.suggestion || '');
+            suggestionsHtml += `<div style="padding:4px 0;padding-left:12px;color:rgba(240,240,255,0.75);font-size:0.8rem;border-left:2px solid rgba(245,158,11,0.3);">
+              <strong>${title}</strong>${body ? '：' + body : ''}
+            </div>`;
+          });
+          suggestionsHtml += `</div>`;
+        }
+
+        if (suggestions.length > 0) {
+          suggestionsHtml += `<div style="margin-bottom:10px;"><div style="font-weight:700;color:#a78bfa;margin-bottom:6px;font-size:0.78rem;">💡 优化建议</div>`;
+          suggestions.forEach(s => {
+            const title = escapeHtml(s.title || s.item || '');
+            const body = escapeHtml(s.body || s.detail || s.suggestion || '');
+            suggestionsHtml += `<div style="margin-bottom:8px;padding:8px;background:rgba(124,58,237,0.05);border-radius:6px;">
+              <div style="font-weight:600;color:#a78bfa;margin-bottom:3px;font-size:0.8rem;">📌 ${title}</div>
+              <div style="color:rgba(240,240,255,0.75);font-size:0.78rem;line-height:1.5;">${body}</div>
+            </div>`;
+          });
+          suggestionsHtml += `</div>`;
+        }
+      } else if (rawText.trim()) {
+        suggestionsHtml = `<div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(rawText)}</div>`;
+      } else {
+        suggestionsHtml = '<div style="color:rgba(240,240,255,0.5);">未能获取优化建议</div>';
+      }
     } else if (rawText.trim()) {
       // 直接显示文本
       suggestionsHtml = `<div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(rawText)}</div>`;
