@@ -43,7 +43,7 @@ async function apiCall(endpoint, body) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 秒超时（MiniMax API 需 50-60 秒）
 
       const resp = await fetch(url, {
         method: 'POST',
@@ -79,8 +79,13 @@ async function apiCall(endpoint, body) {
 class NetworkError extends Error {
   constructor(original) {
     const msg = original?.message || '';
+    const name = original?.name || '';
     let detail = '';
-    if (msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+
+    // 优先判断是否为超时（AbortError）——Safari 超时消息是 "Load failed"，需要按 name 判断
+    if (name === 'AbortError' || msg.includes('aborted') || msg.includes('AbortError') || msg.includes('timeout')) {
+      detail = '请求超时（120秒）。MiniMax API 响应较慢（通常需 50-80 秒），请耐心等待后重试。';
+    } else if (msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
       detail = '无法连接到 Vercel API。可能的原因：\n\n' +
         '1. 网络连接问题或 DNS 解析失败\n' +
         '2. 浏览器安全扩展拦截了跨域请求\n' +
@@ -90,8 +95,6 @@ class NetworkError extends Error {
         '• 尝试切换网络（如从公司网络切到手机热点）\n' +
         '• 检查浏览器扩展（广告拦截、隐私保护等）是否阻止了请求\n' +
         '• 如持续失败，请检查 Vercel 控制台中的 API 部署状态';
-    } else if (msg.includes('aborted') || msg.includes('AbortError') || msg.includes('timeout')) {
-      detail = '请求超时（30秒）。Vercel API 或 MiniMax API 响应过慢，请稍后重试。';
     } else {
       detail = `网络请求失败：${msg}`;
     }
@@ -731,7 +734,7 @@ async function generateScript() {
     <div class="loading-spinner">
       <div class="spinner"></div>
       <div class="loading-text">MiniMax 正在生成${episodeCount > 1 ? episodeCount + '集' : ''}剧本，请稍候...</div>
-      <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div>
+      <div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed · 预计需 50-80 秒</div>
     </div>`;
 
   // 收集 extraPrompt
