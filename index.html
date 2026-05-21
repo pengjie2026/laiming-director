@@ -1679,25 +1679,14 @@
     update('检测中...');
     try {
       let start = Date.now();
-      const r1 = await fetch(API_URL + '/api/health', { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(15000) });
-      const t1 = await r1.text().catch(() => '');
+      const r1 = await fetch(API_URL + '/api/health', { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(10000) });
       results.push({ step: 'health', ok: r1.ok, status: r1.status, time: Date.now()-start + 'ms' });
-      update(`✅ Health OK (${r1.status}) ${Date.now()-start}ms | 测试Script...`, '#4ade80');
-
-      start = Date.now();
-      const r2 = await fetch(API_URL + '/api/script', {
-        method: 'POST', mode: 'cors', signal: AbortSignal.timeout(65000),
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({theme:'测试', ageGroup:'3-6岁'})
-      });
-      const t2 = await r2.text().catch(() => '');
-      results.push({ step: 'script', ok: r2.ok, status: r2.status, time: Date.now()-start + 'ms' });
-      const data = JSON.parse(t2);
-      update(`✅ Script OK (${r2.status}) ${Date.now()-start}ms | 剧本:${data.content?.title || 'OK'}`, '#4ade80');
+      update('✅ API 连接正常', '#4ade80');
+      // 健康检查通过，3秒后自动隐藏
+      setTimeout(() => { banner.style.opacity = '0'; banner.style.transition = 'opacity 0.5s'; setTimeout(() => banner.remove(), 600); }, 3000);
     } catch(e) {
-      const step = results.length === 0 ? 'health' : 'script';
-      results.push({ step, ok: false, error: e.name + ': ' + e.message });
-      update(`❌ ${step.toUpperCase()}失败: ${e.name} — ${e.message}`, '#f87171');
+      results.push({ step: 'health', ok: false, error: e.name + ': ' + e.message });
+      update('❌ API 连接失败 — ' + e.message, '#f87171');
     }
     window.__API_DIAGNOSE = results;
   })();
