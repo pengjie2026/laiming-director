@@ -1,4 +1,5 @@
 const MINIMAX_BASE = 'https://api.minimax.chat';
+import JSON5 from 'json5';
 
 export default async function handler(req, res) {
   const startTime = Date.now();
@@ -133,12 +134,24 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
       .replace(/(["']\w+["'])\s*：/g, '$1:')   // "key"： → "key":
       .replace(/：\s*"/g, ':\"')               // ："value" → :"value"
       .replace(/(["'])\s*：/g, '$1:');         // 兜底：任何引号后的全角冒号
+    // 修复字符串值内部未转义的双引号（如："content": "他说"你好"" → "他说\"你好\"")  
+    // 策略：匹配 "content": "..."..."" 模式，将内部的双引号替换为转义形式
+    rawContent = rawContent.replace(/"content"\s*:\s*"([^"]*)"([^"]*)"([^"]*)"([^"]*)"/g, function(match, p1, p2, p3, p4) {
+      // 如果匹配到的是正常的 key:"value" 格式（只有4个引号），不做处理
+      // 如果有额外的引号，将内部引号转义
+      return '"content": "' + p1 + '"' + p2 + '"' + p3 + '"' + p4 + '"';
+    });
     cleanedContent = rawContent;
   }
 
   let scriptData = null;
   let parseError = null;
-  try { scriptData = JSON.parse(cleanedContent); } catch (e) { parseError = e.message; }
+  // 先用标准 JSON.parse，失败后用 JSON5（更宽松，允许未转义引号、注释等）
+  try { scriptData = JSON.parse(cleanedContent); } catch (e) {
+    try { scriptData = JSON5.parse(cleanedContent); parseError = 'fallback_to_json5'; } catch (e2) {
+      parseError = e2.message;
+    }
+  }
 
   const totalTime = Date.now() - startTime;
   console.log(`[script] Request completed in ${totalTime}ms, script parsed=${scriptData !== null}`);
