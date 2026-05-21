@@ -1,9 +1,12 @@
 const MINIMAX_BASE = 'https://api.minimax.chat';
 
 export default async function handler(req, res) {
+  const startTime = Date.now();
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.end('ok');
+
+  console.log(`[script] Request received at ${new Date().toISOString()}`);
 
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -84,6 +87,8 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
 
   let data;
   try {
+    console.log(`[script] Calling MiniMax API, theme="${theme}", extraPrompt length=${(extraPrompt||'').length}`);
+    const apiStart = Date.now();
     const resp = await fetch(`${MINIMAX_BASE}/v1/chat/completions`, {
       method: 'POST',
       headers: {
@@ -101,6 +106,7 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
       }),
     });
     data = await resp.json();
+    console.log(`[script] MiniMax API responded in ${Date.now() - apiStart}ms, status=${resp.status}, completion_tokens=${data?.usage?.completion_tokens || '?'}`);
     if (!resp.ok) {
       res.statusCode = 502;
       return res.end(JSON.stringify({ error: data.error?.message || `MiniMax API ${resp.status}` }));
@@ -126,10 +132,13 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
   let scriptData = null;
   try { scriptData = JSON.parse(cleanedContent); } catch (_) {}
 
+  const totalTime = Date.now() - startTime;
+  console.log(`[script] Request completed in ${totalTime}ms, script parsed=${scriptData !== null}`);
   return res.end(JSON.stringify({
     raw: data,
     content: cleanedContent,
     script: scriptData,
     model: 'MiniMax-M2.7-highspeed',
+    _debug: { serverTimeMs: totalTime, apiTimeMs: data?._debug?.apiTimeMs || null },
   }));
 }
