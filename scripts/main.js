@@ -6,12 +6,12 @@
 // -- MiniMax API 配置 ---------------------------------------------
 // ⚠️ Vercel Node.js Serverless Functions 地址（当前已配置）
 // 部署步骤：
-//   cd ai-features
-//   wrangler login
-//   wrangler secret put MINIMAX_API_KEY
-//   wrangler deploy
+//   1. npm i -g vercel
+//   2. vercel login
+//   3. vercel env add MINIMAX_API_KEY
+//   4. vercel --prod
 const API_CONFIG = {
-  workerUrl: 'https://laiming-director.vercel.app',  // Vercel Edge Functions 地址（部署后替换）
+  workerUrl: 'https://laiming-director.vercel.app',  // Vercel Node.js Serverless 地址
 
   isConfigured() {
     return !!this.workerUrl && this.workerUrl.startsWith('http');
@@ -22,17 +22,16 @@ const API_CONFIG = {
 async function apiCall(endpoint, body) {
   if (!API_CONFIG.isConfigured()) {
     const steps = [
-      'Worker URL 未配置，请按以下步骤部署：',
+      'API URL 未配置，请检查 main.js 中的 API_CONFIG.workerUrl 是否已设置为正确的 Vercel 地址。',
       '',
-      '1️⃣  cd ai-features',
-      '2️⃣  wrangler login',
-      '3️⃣  wrangler secret put MINIMAX_API_KEY',
-      '      （粘贴 MiniMax API Key）',
-      '4️⃣  wrangler deploy',
-      '5️⃣  将部署后的 Worker URL 填入 main.js 的 API_CONFIG.workerUrl',
+      '当前配置地址：',
+      `  ${API_CONFIG.workerUrl}`,
       '',
-      'MiniMax API Key（Token Plan）示例：',
-      'sk-api-8nLy5uA1JRaYlF9xTtU3O8JKCA3qovzlsCbtrg8SoaTbpgzFFGOq-jt-TR6gkzI684WDHzdgbLueoU8W7IfhXIPGgfeSL1q6FuUuNJ73k9Q3v7xOkM9Fn2s',
+      '如需重新部署：',
+      '1️⃣  npm i -g vercel',
+      '2️⃣  vercel login',
+      '3️⃣  vercel env add MINIMAX_API_KEY',
+      '4️⃣  vercel --prod',
     ];
     throw new Error(steps.join('\n'));
   }
@@ -82,17 +81,17 @@ class NetworkError extends Error {
     const msg = original?.message || '';
     let detail = '';
     if (msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      detail = '无法连接到 Cloudflare Worker。可能的原因：\n\n' +
-        '1. .workers.dev 域名在当前网络环境下被屏蔽\n' +
+      detail = '无法连接到 Vercel API。可能的原因：\n\n' +
+        '1. 网络连接问题或 DNS 解析失败\n' +
         '2. 浏览器安全扩展拦截了跨域请求\n' +
-        '3. DNS 解析失败\n\n' +
+        '3. Vercel 服务临时不可用\n\n' +
         '建议排查：\n' +
         '• 打开浏览器 F12 控制台，查看 Network 标签页中的具体错误\n' +
         '• 尝试切换网络（如从公司网络切到手机热点）\n' +
         '• 检查浏览器扩展（广告拦截、隐私保护等）是否阻止了请求\n' +
-        '• 如持续失败，可考虑为 Worker 绑定自定义域名（而非 .workers.dev）';
+        '• 如持续失败，请检查 Vercel 控制台中的 API 部署状态';
     } else if (msg.includes('aborted') || msg.includes('AbortError') || msg.includes('timeout')) {
-      detail = '请求超时（30秒）。Worker 或 MiniMax API 响应过慢，请稍后重试。';
+      detail = '请求超时（30秒）。Vercel API 或 MiniMax API 响应过慢，请稍后重试。';
     } else {
       detail = `网络请求失败：${msg}`;
     }
@@ -807,7 +806,7 @@ async function generateScript() {
   } catch (err) {
     // 检查是否是 MiniMax 余额不足
     let isBalanceErr = err.message.includes('insufficient balance') || err.message.includes('1008');
-    const isNetworkErr = err instanceof NetworkError || err.message?.includes('无法连接到 Cloudflare Worker');
+    const isNetworkErr = err instanceof NetworkError || err.message?.includes('无法连接到 Vercel API');
     output.innerHTML = `<div style="padding:16px;color:#f87171;font-size:0.85rem;">
       ${isBalanceErr
         ? `<div style="font-size:1rem;font-weight:700;margin-bottom:8px;">⚠️ MiniMax 额度不足</div>
