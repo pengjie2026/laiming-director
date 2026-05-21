@@ -24,13 +24,13 @@ export default async function handler(req, res) {
     return res.end(JSON.stringify({ error: 'Invalid JSON body' }));
   }
 
-  const { theme, ageGroup = '6-12', extraContext = '', episodeCount = 1 } = body;
+  const { theme, ageGroup = '6-12', extraPrompt = '', episodeCount = 1 } = body;
   if (!theme) {
     res.statusCode = 400;
     return res.end(JSON.stringify({ error: 'theme is required' }));
   }
 
-  const extraPrompt = extraContext ? `\n附加信息：${extraContext}` : '';
+  const hasCustomPrompt = extraPrompt && extraPrompt.trim().length >= 50;
   const isMultiEpisode = parseInt(episodeCount) > 1;
   const episodeHint = isMultiEpisode
     ? `\n【重要】请创作${episodeCount}集连续剧，每集有独立的小故事但主线贯穿。输出格式中 acts 改为 episodes 数组，每项包含 episodeNumber、episodeTitle、acts 等字段。`
@@ -49,6 +49,8 @@ export default async function handler(req, res) {
 6. 多集剧本要有贯穿主线，每集独立成章又前后呼应
 
 请从儿童视角创作剧本，角色台词要口语化、简洁，适合儿童理解和模仿。
+
+【重要】如果用户消息开头包含"以下为用户提供的详细剧本创作方向"，说明这是用户精心准备的创作需求。你必须严格遵照其中的角色设定、故事框架、情节走向来创作，不要自行更改故事主题或角色设定。你的任务是将用户的创意方向充实扩展为完整的剧本，而不是另起炉灶重新构思。
 
 JSON输出必须满足以下要求：
 1. 使用标准JSON格式
@@ -106,6 +108,8 @@ JSON输出必须满足以下要求：
 
 请从儿童视角创作剧本，角色台词要口语化、简洁，适合儿童理解和模仿。
 
+【重要】如果用户消息开头包含"以下为用户提供的详细剧本创作方向"，说明这是用户精心准备的创作需求。你必须严格遵照其中的角色设定、故事框架、情节走向来创作，不要自行更改故事主题或角色设定。你的任务是将用户的创意方向充实扩展为完整的剧本，而不是另起炉灶重新构思。
+
 JSON输出必须满足以下要求：
 1. 使用标准JSON格式
 2. 字符串值内不能包含未转义的控制字符
@@ -144,11 +148,29 @@ JSON输出必须满足以下要求：
   "tips": "分镜执行提示"
 }`;
 
-  const episodeInstruction = isMultiEpisode
-    ? `请为${ageGroup}岁儿童创作${episodeCount}集关于"${theme}"的连载动画剧本。每集约5分钟，每集有独立的起承转合，同时整体有一条贯穿主线。`
-    : `请为${ageGroup}岁儿童创作一个关于"${theme}"的动画剧本。`;
+  // 当有详细自定义提示词时，将其作为主要创作方向
+  let userPrompt;
+  if (hasCustomPrompt) {
+    userPrompt = `【以下为用户提供的详细剧本创作方向，请严格遵照执行】
 
-  const userPrompt = `${episodeInstruction}${extraPrompt}${episodeHint}
+${extraPrompt}
+
+【补充技术要求】
+- 目标受众：${ageGroup}岁儿童
+- 故事主题关键词：${theme}
+${isMultiEpisode ? `- 总集数：${episodeCount}集，每集独立成章又前后呼应
+` : `- 单集剧本
+`}- 时长：约5分钟${isMultiEpisode ? '/集' : ''}
+- 结构：${isMultiEpisode ? '每' : ''}集包含3幕（开端→发展→结局）
+- 每个场景必须包含：场景地点、时间、旁白、角色台词（含对话和动作）、镜头语言说明
+- 角色台词要口语化、简洁，适合儿童理解和模仿
+${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含 episodeNumber、episodeTitle、acts 等字段\n' : ''}- 【必须】只输出JSON格式，不要任何其他文字说明`;
+  } else {
+    const episodeInstruction = isMultiEpisode
+      ? `请为${ageGroup}岁儿童创作${episodeCount}集关于"${theme}"的连载动画剧本。每集约5分钟，每集有独立的起承转合，同时整体有一条贯穿主线。`
+      : `请为${ageGroup}岁儿童创作一个关于"${theme}"的动画剧本。`;
+
+    userPrompt = `${episodeInstruction}${episodeHint}
 
 要求：
 1. 温馨有趣、积极向上
@@ -156,6 +178,7 @@ JSON输出必须满足以下要求：
 3. 包含3幕结构（开端、发展、结局）
 4. 每个场景标注镜头语言
 5. 【必须】只输出上述JSON格式，不要任何其他文字说明`;
+  }
 
   let data;
   try {
@@ -171,7 +194,7 @@ JSON输出必须满足以下要求：
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 16000,
+        max_tokens: isMultiEpisode ? Math.min(8000 * episodeCount, 32000) : 16000,
         temperature: 0.8,
       }),
     });

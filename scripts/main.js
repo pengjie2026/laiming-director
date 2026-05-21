@@ -902,7 +902,11 @@ function renderActsHtml(acts) {
   let html = '';
   acts.forEach(act => {
     html += `<div class="script-block"><span class="sb-tag">【${escapeHtml(act.act)}】</span><br/>`;
-    (act.scenes || []).forEach(scene => {
+    const scenes = act.scenes || [];
+    if (scenes.length === 0) {
+      html += `<span style="color:rgba(240,240,255,0.4);font-style:italic;">（本幕暂无详细场景内容，AI 可能未完整生成）</span><br/>`;
+    } else {
+      scenes.forEach(scene => {
       if (scene.location) {
         html += `<span class="line-type scene">${escapeHtml(scene.sceneNum + ' ' + scene.location + ' - ' + scene.time)}</span><br/>`;
       }
@@ -911,7 +915,8 @@ function renderActsHtml(acts) {
         html += `<em>${escapeHtml(d.character)}（${escapeHtml(d.type)}）：</em>"${escapeHtml(d.content)}"<br/>`;
       });
       if (scene.cameraNote) html += `<span class="line-type action">镜头：</span>${escapeHtml(scene.cameraNote)}<br/>`;
-    });
+      });
+    }
     html += `</div>`;
   });
   return html;
