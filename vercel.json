@@ -10,9 +10,26 @@
     "api/review.js": { "maxDuration": 300 },
     "api/video.js": { "maxDuration": 300 }
   },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/script", "destination": "/api/script" },
+    { "source": "/storyboard", "destination": "/api/storyboard" },
+    { "source": "/image", "destination": "/api/image" },
+    { "source": "/tts", "destination": "/api/tts" },
+    { "source": "/review", "destination": "/api/review" },
+    { "source": "/video", "destination": "/api/video" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    },
+    {
+      "source": "/(script|storyboard|image|tts|review|video|health)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
