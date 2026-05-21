@@ -33,31 +33,23 @@ export default async function handler(req, res) {
     duration = '5分钟',
   } = body;
 
-  const systemPrompt = `你是一位资深儿童动画编剧和AI提示词工程师。
-你的任务是根据用户提供的创作需求，生成一段高质量、结构化的AI提示词（prompt），
-该提示词将被发送给另一个AI模型来生成儿童动画剧本。
+  const systemPrompt = `你的任务是把用户的简短故事描述转化为精炼的剧本生成提示词。规则：
+1. 角色：用户提到的角色写清楚性格（用5-10字概括即可，不要写长篇人物小传）
+2. 场景：根据故事描述具体化实验或其他场景的细节
+3. 要求：忠转达用户的具体要求（风格、反转、对话比例等）
+4. 不做的事：不要写"本剧共X集讲述XX故事"之类的产品说明；不要写分幕结构（那是AI写剧本时自己决定的）；不要写教育价值套话（如"传递友谊合作"）
+5. 格式：自然段落，100-200字即可，不写标题，不要markdown，不要JSON`;
 
-生成的提示词必须：
-1. 完整描述故事主题、核心冲突、角色设定、叙事风格
-2. 明确目标受众年龄和心理特征
-3. 指定教育价值导向（不说教，融入剧情）
-4. 给出叙事节奏建议（开端→发展→高潮→结局）
-5. 包含分幕结构要求和每幕要点
-6. 用中文书写，语气专业但不生硬
-7. 输出为可直接使用的纯文本提示词（不要JSON、不要代码块、不要额外说明）
-8. 长度控制在300-600字`;
+  const userName = theme.includes('和') ? theme.split('和')[0].trim() : theme;
 
-  const userPrompt = `请根据以下信息生成一份AI提示词：
+  const userPrompt = `将以下信息转为精炼剧本提示词：
+主题：${theme}
+年龄：${ageGroup}岁
+故事：${storyDesc || '（自由发挥创意）'}
+${episodeCount > 1 ? `集数：${episodeCount}集` : ''}
+${duration ? `时长：${duration}` : ''}
 
-【故事主题】${theme}
-【目标年龄】${ageGroup}岁儿童
-【故事描述】${storyDesc || '（由你自由发挥创意）'}
-【教育主题】${eduThemes || '友谊合作、探索成长'}
-【集数】${episodeCount}集${episodeCount > 1 ? '连续剧' : ''}
-【单集时长】${duration}
-
-请直接输出一段连续的自然语言提示词文本（不要任何格式化标记、不要JSON、不要代码块、不要列举要点编号）。
-提示词应当能够引导另一个AI生成完整的儿童动画剧本。`;
+输出精炼提示词（直接输出，不要标题、不要说明文字）：`;
 
   let data;
   try {
@@ -73,7 +65,7 @@ export default async function handler(req, res) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 2000,
+        max_tokens: 500,
         temperature: 0.7,
       }),
     });
