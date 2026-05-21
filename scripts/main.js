@@ -747,7 +747,7 @@ async function generateScript() {
   const extraPrompt = extraParts.join('；');
 
   try {
-    const result = await apiCall('/script', { theme, ageGroup, extraPrompt });
+    const result = await apiCall('/api/script', { theme, ageGroup, extraPrompt });
 
     // 优先使用 Worker 预解析的剧本对象（v1.0.2+ Worker 返回 script 字段）
     let scriptData = result.script || null;
@@ -986,7 +986,7 @@ async function generateStoryboard() {
   output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 正在规划分镜...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div></div>`;
 
   try {
-    const result = await apiCall('/storyboard', { scene, style });
+    const result = await apiCall('/api/storyboard', { scene, style });
     let rawText = '';
     const mm = result.raw || result.data || result;
     const choices = mm?.choices;
@@ -1039,7 +1039,7 @@ async function generateImage() {
   output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 正在生图...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：image-01 · ${count}张图</div></div>`;
 
   try {
-    const result = await apiCall('/image', { prompt, count, style });
+    const result = await apiCall('/api/image', { prompt, count, style });
     const images = result.images || [];
 
     if (images.length === 0) {
@@ -1114,7 +1114,7 @@ async function generateVideo() {
 </div>`;
 
   try {
-    const result = await apiCall('/video', {
+    const result = await apiCall('/api/video', {
       prompt: textPrompt,
       image_base64: imageBase64,
       duration,
@@ -1176,7 +1176,7 @@ async function runContentReview() {
   output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax AI 正在进行内容安全审核...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：MiniMax-M2.7-highspeed</div></div>`;
 
   try {
-    const result = await apiCall('/review', { content });
+    const result = await apiCall('/api/review', { content });
     let rawText = '';
     const mm = result.raw || result.data || result;
     const choices = mm?.choices;
@@ -1262,7 +1262,7 @@ async function generateVoice() {
   output.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div class="loading-text">MiniMax 语音合成中...</div><div style="font-size:0.75rem;color:rgba(167,139,250,0.6);margin-top:4px;">使用模型：speech-2.8-hd</div></div>`;
 
   try {
-    const blob = await apiCall('/tts', { text, voice_id: voiceId, speed: 1.0, model: 'speech-2.8-hd' });
+    const blob = await apiCall('/api/tts', { text, voice_id: voiceId, speed: 1.0, model: 'speech-2.8-hd' });
     const url = URL.createObjectURL(blob);
     output.innerHTML = `
 <div style="padding:20px;text-align:center;">
@@ -1304,7 +1304,7 @@ async function runScriptOptimization() {
 <div class="loading-spinner" id="optLoading" style="margin-top:16px;"><div class="spinner"></div><div style="font-size:0.82rem;color:rgba(167,139,250,0.8);">MiniMax 正在分析剧本...</div></div>`);
 
   try {
-    const result = await apiCall('/review', {
+    const result = await apiCall('/api/review', {
       content: state.scriptContent + '\n\n请从以下维度提供优化建议：1.结构完整度 2.节奏优化 3.对白自然度 4.适龄评估 5.画面感'
     });
 
@@ -1377,7 +1377,7 @@ async function extractEduValues() {
 
   try {
     // 使用 /review 接口，让 AI 分析剧本中的教育价值
-    const result = await apiCall('/review', {
+    const result = await apiCall('/api/review', {
       content: `请分析以下儿童动画剧本，提取其中的教育价值和主题（请直接列出，不要 JSON 格式）：\n\n${state.scriptContent.substring(0, 3000)}`
     });
 
@@ -1548,7 +1548,7 @@ async function testAPIHealth() {
     return false;
   }
   try {
-    const resp = await fetch(`${API_CONFIG.workerUrl}/health`);
+    const resp = await fetch(`${API_CONFIG.workerUrl}/api/health`);
     const data = await resp.json();
     console.log('[籁鸣导演] ✅ API 健康检测成功:', data);
     return true;
