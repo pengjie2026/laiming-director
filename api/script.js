@@ -102,7 +102,7 @@ ${isMultiEpisode ? '- 输出格式中 acts 改为 episodes 数组，每项包含
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: isMultiEpisode ? Math.min(6000 * episodeCount, 24000) : 6000,
+        max_tokens: isMultiEpisode ? Math.min(8000 * episodeCount, 32000) : 8000,
         temperature: 0.8,
       }),
     });
